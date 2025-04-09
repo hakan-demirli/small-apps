@@ -27,15 +27,21 @@
             let
               packagePath = "${toString pkgsDir}/${pkgName}";
             in
-            lib.nameValuePair pkgName (
-              pkgs.callPackage "${packagePath}/default.nix" {
-              }
-            )
+            lib.nameValuePair pkgName (pkgs.callPackage "${packagePath}/default.nix" { })
           ) (findPackageDirs pkgsDir);
         myPackages = buildPackages ./pkgs;
       in
       {
-        packages = myPackages;
+        packages = myPackages // {
+          default = pkgs.buildEnv {
+            name = "small-apps-bundle-${system}";
+            paths = lib.attrValues myPackages;
+            meta = {
+              description = "Build environment containing all small-apps";
+            };
+          };
+        };
+        overlays.default = final: prev: myPackages;
       }
     );
 }
