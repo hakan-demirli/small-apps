@@ -22,6 +22,7 @@ pkgs.stdenv.mkDerivation {
   installPhase = ''
     mkdir -p $out/bin
     cp -r $src/* $out/
+    rm $out/default.nix
     makeWrapper $out/gtk_indicator.py $out/bin/gtk_indicator \
       --set LD_PRELOAD ${pkgs.gtk4-layer-shell}/lib/libgtk4-layer-shell.so
     makeWrapper $out/gtk_indicator_client.py $out/bin/gtk_indicator_client \

@@ -1,37 +1,33 @@
 { pkgs, ... }:
-
 let
   htmlPreviewLsp = pkgs.rustPlatform.buildRustPackage {
     pname = "html-preview-lsp";
     version = "0.1.0";
 
     src = ./lsp;
-    useFetchCargoVendor = true;
     cargoHash = "sha256-UTdOk/DMxTGhHbyTiIPz1V/wI6bTHDSGfO5n3b8NVBc=";
 
-    propagatedBuildInputs = [
-      pkgs.glibc
-      pkgs.openssl
-      pkgs.pkg-config
-      pkgs.rustc
-      pkgs.cargo
-    ];
+    nativeBuildInputs = [ pkgs.pkg-config ];
 
-    nativeBuildInputs = [
-      pkgs.glibc
-      pkgs.openssl
-      pkgs.pkg-config
-      pkgs.rustc
-      pkgs.cargo
-    ];
+    buildInputs = [ pkgs.openssl ];
+
+    meta = {
+      description = "LSP Server for HTML Preview";
+
+    };
   };
 
-  htmlPreviewServer = pkgs.stdenv.mkDerivation {
-    name = "html-preview-server";
+  htmlPreviewServerStdenv = pkgs.stdenv.mkDerivation {
+    name = "html-preview-server-script";
+    version = "0.1.0";
+
+    src = ./server;
+
+    nativeBuildInputs = [ pkgs.makeWrapper ];
 
     propagatedBuildInputs = [
       (pkgs.python3.withPackages (
-        pythonPackages: with pythonPackages; [
+        ps: with ps; [
           requests
           flask
           flask-cors
@@ -42,16 +38,33 @@ let
     ];
 
     dontUnpack = true;
-    src = ./server;
 
     installPhase = ''
-      mkdir -p $out/bin
-      cp -r $src/main.py $out
-      ln -s $out/main.py $out/bin/html-preview-server
-      chmod +x $out/bin/html-preview-server
+      runHook preInstall
+      mkdir -p $out/bin $out/libexec/html-preview-server
+      cp $src/main.py $out/libexec/html-preview-server/
+
+      makeWrapper ${pkgs.python3}/bin/python $out/bin/html-preview-server \
+        --add-flags $out/libexec/html-preview-server/main.py \
+        --prefix PYTHONPATH : "$PYTHONPATH" 
+
+      runHook postInstall
     '';
+    meta = {
+      description = "Server component for HTML Preview";
+    };
   };
+
 in
-{
-  inherit htmlPreviewLsp htmlPreviewServer;
+
+pkgs.buildEnv {
+  name = "html-preview";
+  paths = [
+    htmlPreviewLsp
+    htmlPreviewServerStdenv
+  ];
+
+  meta = {
+    description = "HTML Preview tools (LSP + Server)";
+  };
 }

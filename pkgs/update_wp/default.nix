@@ -20,6 +20,7 @@ pkgs.stdenv.mkDerivation {
   installPhase = ''
     mkdir -p $out/bin
     cp -r $src/* $out/
+    rm $out/default.nix
     ln -s $out/update_wp.py $out/bin/update_wp
     chmod +x $out/bin/update_wp
   '';

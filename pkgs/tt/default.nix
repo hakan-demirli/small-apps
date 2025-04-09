@@ -10,6 +10,7 @@ pkgs.stdenv.mkDerivation {
   installPhase = ''
     mkdir -p $out/bin
     cp -r $src/* $out/
+    rm $out/default.nix
     ln -s $out/tt.py $out/bin/tt
     chmod +x $out/bin/tt
   '';
