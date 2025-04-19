@@ -29,13 +29,23 @@ class TimerState(Enum):
 
 
 def play_sound(file: str):
-    try:
-        subprocess.Popen(
-            f"ffplay -nodisp -autoexit $XDG_DATA_HOME/sounds/effects/{file}", shell=True
-        )
-    except Exception:
-        # print(e)
-        pass
+    sound_path = os.path.join(
+        os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share")),
+        "sounds/effects",
+        file,
+    )
+    if os.path.exists(sound_path):
+        try:
+            subprocess.Popen(
+                ["ffplay", "-nodisp", "-autoexit", sound_path],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception as e:
+            logging.error(f"Failed to play sound {sound_path}: {e}")
+            pass
+    else:
+        logging.warning(f"Sound file not found: {sound_path}")
 
 
 class Timer:
@@ -55,10 +65,9 @@ class Timer:
                 self.state = TimerState(state["state"])
                 self.end_time = datetime.fromisoformat(state["end_time"])
                 self.stopped_time = datetime.fromisoformat(state["stopped_time"])
-        except (FileNotFoundError, json.JSONDecodeError):
-            self.state = TimerState.READY
-            self.end_time = datetime.min
-            self.stopped_time = datetime.min
+        except (FileNotFoundError, json.JSONDecodeError, KeyError, ValueError) as e:
+            logging.warning(f"Failed to load state, resetting: {e}")
+            self.clear()  # Reset to default if loading fails
 
     def save_state(self) -> None:
         state = {
@@ -66,71 +75,150 @@ class Timer:
             "end_time": self.end_time.isoformat(),
             "stopped_time": self.stopped_time.isoformat(),
         }
-        with open(self.state_file, "w") as f:
-            json.dump(state, f)
+        try:
+            with open(self.state_file, "w") as f:
+                json.dump(state, f)
+        except IOError as e:
+            logging.error(f"Failed to save state: {e}")
 
     def set(self, minutes: int) -> None:
-        self.state = TimerState.COUNTING
-        self.end_time = datetime.now() + timedelta(minutes=minutes)
-        self.stopped_time = datetime.min
-        if minutes:
-            play_sound("nier_enter.mp3")
-        self.save_state()
+        self._set_duration(timedelta(minutes=minutes))
         logging.info(f"Set timer for {minutes} minutes")
+
+    def set_seconds(self, seconds: int) -> None:
+        self._set_duration(timedelta(seconds=seconds))
+        logging.info(f"Set timer for {seconds} seconds")
+
+    def _set_duration(self, duration: timedelta) -> None:
+        self.state = TimerState.COUNTING
+        self.end_time = datetime.now() + duration
+        self.stopped_time = datetime.min
+        if duration.total_seconds() > 0:
+            play_sound("nier_enter.mp3")
+        else:  # Handle setting timer to 0 immediately
+            self.state = TimerState.READY
+            self.end_time = datetime.min
+        self.save_state()
 
     def read(self) -> timedelta:
         if self.state == TimerState.COUNTING:
             remaining = self.end_time - datetime.now()
             if remaining.total_seconds() <= 0:
-                self.state = TimerState.TIMEOUT
-                self.save_state()
-                play_sound("nier_back.mp3")
-                logging.info("Timeout")
+                # Check again after potentially saving to avoid race condition
+                if (
+                    self.state == TimerState.COUNTING
+                ):  # Avoid double timeout if already processed
+                    self.state = TimerState.TIMEOUT
+                    self.save_state()
+                    play_sound("nier_back.mp3")
+                    logging.info("Timeout")
                 return timedelta(0)
             return remaining
         elif self.state == TimerState.STOPPED:
-            return self.end_time - self.stopped_time
+            # Ensure stopped time is valid before calculation
+            if self.stopped_time > datetime.min and self.end_time > self.stopped_time:
+                return self.end_time - self.stopped_time
+            else:
+                # If stopped_time is invalid, treat as 0 remaining
+                logging.warning("Invalid state detected in read() for STOPPED timer.")
+                return timedelta(0)
+
         return timedelta(0)
 
     def print_time(self) -> dict:
+        self.load_state()  # Ensure we have the latest state before printing
         if self.state == TimerState.READY:
             return {
                 "text": f"<span font='{FONT_SIZE}' rise='-2000'>󰔛</span>",
-                "tooltip": "Timer is not active",
+                "tooltip": "Timer: Ready",
+                "class": "ready",
             }
         elif self.state == TimerState.TIMEOUT:
             return {
                 "text": f"<span font='{FONT_SIZE}' rise='-2000'>󰔛</span>",
-                "tooltip": "Timeout",
+                "tooltip": "Timer: Timeout!",
+                "class": "timeout",
             }
         elif self.state == TimerState.COUNTING or self.state == TimerState.STOPPED:
             remaining_time = self.read()
-            minutes, seconds = divmod(int(remaining_time.total_seconds()), 60)
+            # Recalculate remaining time if state is stopped
+            if self.state == TimerState.STOPPED:
+                if (
+                    self.stopped_time > datetime.min
+                    and self.end_time > self.stopped_time
+                ):
+                    remaining_time = self.end_time - self.stopped_time
+                else:
+                    remaining_time = timedelta(0)
+
+            total_seconds = int(remaining_time.total_seconds())
+            minutes, seconds = divmod(max(0, total_seconds), 60)  # Ensure non-negative
+
+            icon = (
+                "󰔟" if self.state == TimerState.COUNTING else "󰔛"
+            )  # Use different icon for stopped? Or keep same? Let's use pause icon. 󰏤
+            icon = "󰔟" if self.state == TimerState.COUNTING else "󰏤"
+            css_class = "active" if self.state == TimerState.COUNTING else "stopped"
+            tooltip_state = (
+                "Counting" if self.state == TimerState.COUNTING else "Stopped"
+            )
+
             return {
-                "text": f"<span font='{FONT_SIZE}' rise='-2000'>󰔟</span> {minutes}:{str(seconds).zfill(2)} ",
-                "class": "active",
-                "tooltip": "Timer is active",
+                "text": f"<span font='{FONT_SIZE}' rise='-2000'>{icon}</span> {minutes}:{str(seconds).zfill(2)} ",
+                "class": css_class,
+                "tooltip": f"Timer: {tooltip_state}\nEnds at: {self.end_time.strftime('%H:%M:%S') if self.end_time > datetime.min else 'N/A'}",
             }
-        else:
+        else:  # Should not happen with Enum, but good practice
             return {
-                "text": f"<span font='{FONT_SIZE}' rise='-2000'>󰔛</span>",
-                "tooltip": "Timer is not active",
+                "text": f"<span font='{FONT_SIZE}' rise='-2000'>?</span>",
+                "tooltip": "Timer: Unknown State",
+                "class": "unknown",
             }
 
     def toggle(self) -> None:
+        self.load_state()  # Ensure current state
         if self.state == TimerState.COUNTING:
             self.state = TimerState.STOPPED
             self.stopped_time = datetime.now()
             logging.info("Stopped timer")
+            play_sound("nier_cancel.mp3")
         elif self.state == TimerState.STOPPED:
             self.state = TimerState.COUNTING
-            self.end_time = datetime.now() + (self.end_time - self.stopped_time)
+            # Check if stopped_time is valid
+            if self.stopped_time > datetime.min and self.end_time > self.stopped_time:
+                duration_remaining = self.end_time - self.stopped_time
+                self.end_time = datetime.now() + duration_remaining
+            else:
+                # If state was inconsistent, maybe just restart from 0 or keep original end time?
+                # Let's restart from original end_time - now(), assuming it was just paused briefly.
+                # Or maybe better, clear the timer if state is inconsistent?
+                # For simplicity, let's just recalculate based on original end_time if possible
+                # If end_time itself is invalid, we should probably clear.
+                if self.end_time > datetime.now():
+                    # This path implies it was stopped but state wasn't saved correctly.
+                    # Keep original end_time.
+                    pass  # end_time remains the same
+                else:
+                    # Timer already expired or state is very wrong, clear it.
+                    logging.warning(
+                        "Inconsistent STOPPED state during toggle, clearing timer."
+                    )
+                    self.clear()
+                    return  # Exit toggle after clearing
+            self.stopped_time = datetime.min  # Reset stopped time
             logging.info("Started timer")
-        else:
+            play_sound("nier_select.mp3")
+        elif self.state == TimerState.TIMEOUT:
+            self.clear()  # Clear on toggle if timed out
+            return
+        else:  # READY state
+            # Optional: maybe start a default timer? For now, do nothing.
+            logging.info("Toggle attempted on READY timer.")
             return
         self.save_state()
 
     def clear(self) -> None:
+        play_sound("nier_cancel.mp3")
         self.state = TimerState.READY
         self.end_time = datetime.min
         self.stopped_time = datetime.min
@@ -139,24 +227,52 @@ class Timer:
 
 
 def run_cmd(cmd: str) -> str:
-    return subprocess.check_output(cmd, shell=True).decode().strip()
+    try:
+        # Use list format for better security and handling of spaces
+        result = subprocess.run(
+            cmd, shell=True, check=True, capture_output=True, text=True
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Command failed: {cmd}\nError: {e}")
+        raise  # Re-raise the exception if the caller needs to handle it
+    except FileNotFoundError:
+        logging.error(f"Command not found: {ZENITY}")
+        raise  # Re-raise
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CLI Timer")
-    parser.add_argument("-r", "--read", action="store_true", help="Read remaining time")
+    parser = argparse.ArgumentParser(description="Waybar Timer Module")
+    parser.add_argument(
+        "-r",
+        "--read",
+        action="store_true",
+        help="Read remaining time and print Waybar JSON output",
+    )
     parser.add_argument(
         "-m",
         "--minute",
         nargs="?",
-        const=None,
-        default=False,
-        help="Set the timer using a popup or provided value",
+        const=None,  # Allows -m without value
+        default=False,  # Differentiates between not provided and provided without value
+        type=int,  # Check if value provided is int
+        help="Set timer in minutes. No value opens GUI prompt.",
     )
     parser.add_argument(
-        "-t", "--toggle", action="store_true", help="Start/Stop the timer"
+        "-s",
+        "--second",
+        type=int,
+        help="Set the timer in seconds (via CLI only)",
     )
-    parser.add_argument("-c", "--clear", action="store_true", help="Reset the timer")
+    parser.add_argument(
+        "-t",
+        "--toggle",
+        action="store_true",
+        help="Toggle timer state (Counting <-> Stopped)",
+    )
+    parser.add_argument(
+        "-c", "--clear", action="store_true", help="Clear/reset the timer"
+    )
     args = parser.parse_args()
 
     timer = Timer(TIMER_FILE)
@@ -164,20 +280,70 @@ def main():
     if args.read:
         print(json.dumps(timer.print_time()))
     elif args.minute is not False:
-        # minute is not set via cli. Ask the user via gui
-        if args.minute is None:
+        if args.minute is None:  # -m without value, use GUI
             try:
-                timer_target = run_cmd(
-                    f'{ZENITY} --scale --title "Set timer" --text "In x minutes:" --min-value=0 --max-value=600 --step=1 --value={DEFAULT_MINUTE}'
+                timer_target_str = run_cmd(
+                    f'{ZENITY} --scale --title "Set timer" --text "Set timer duration (minutes):" --min-value=0 --max-value=600 --step=1 --value={DEFAULT_MINUTE}'
                 )
-            except Exception:
-                # print("{}")
-                return 0
-            if timer_target:
-                timer.set(int(timer_target))
-        else:
-            timer.set(int(args.minute))
-            print(f"Done. set to : {args.minute}")
+                if timer_target_str:  # Check if user provided input (didn't cancel)
+                    timer_target = int(timer_target_str)
+                    timer.set(timer_target)
+                else:
+                    logging.info("Timer setting cancelled via GUI.")
+                    # print("{}")
+            except (subprocess.CalledProcessError, FileNotFoundError, ValueError) as e:
+                logging.error(f"Failed to get timer value via Zenity: {e}")
+                print(
+                    json.dumps(
+                        {
+                            "text": "Error",
+                            "tooltip": f"Failed to run zenity: {e}",
+                            "class": "error",
+                        }
+                    )
+                )
+                # Optionally exit with error code? return 1
+            except Exception as e:
+                logging.error(f"An unexpected error occurred with Zenity: {e}")
+                print(
+                    json.dumps(
+                        {
+                            "text": "Error",
+                            "tooltip": f"Unexpected error: {e}",
+                            "class": "error",
+                        }
+                    )
+                )
+
+        else:  # -m with a value
+            try:
+                timer_minutes = int(args.minute)
+                if timer_minutes >= 0:
+                    timer.set(timer_minutes)
+                    print(
+                        f"Timer set for {timer_minutes} minutes."
+                    )  # User feedback for CLI set
+                else:
+                    print("Error: Minute value must be non-negative.")
+                    logging.warning("Attempted to set negative minutes.")
+            except ValueError:
+                print("Error: Invalid minute value provided.")
+                logging.error(f"Invalid minute value: {args.minute}")
+
+    elif args.second is not None:  # -s used with a value
+        try:
+            timer_seconds = int(args.second)
+            if timer_seconds >= 0:
+                timer.set_seconds(timer_seconds)
+                print(
+                    f"Timer set for {timer_seconds} seconds."
+                )  # User feedback for CLI set
+            else:
+                print("Error: Second value must be non-negative.")
+                logging.warning("Attempted to set negative seconds.")
+        except ValueError:
+            print("Error: Invalid second value provided.")
+            logging.error(f"Invalid second value: {args.second}")
 
     elif args.toggle:
         timer.toggle()
