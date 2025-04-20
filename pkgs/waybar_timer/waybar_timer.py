@@ -27,6 +27,7 @@ class TimerState(Enum):
     STOPPED = "stopped"
     TIMEOUT = "timeout"
     STOPWATCH = "stopwatch"  # New state for stopwatch
+    STOPWATCH_PAUSED = "stopwatch_paused"  # Paused stopwatch state
 
 
 def play_sound(file: str):
@@ -56,6 +57,7 @@ class Timer:
         self.end_time: datetime = datetime.min
         self.stopped_time: datetime = datetime.min
         self.start_time: datetime = datetime.min  # For stopwatch
+        self.elapsed_time: timedelta = timedelta(0)  # For paused stopwatch
         if not os.path.exists(state_file):
             self.clear()
         self.load_state()
@@ -72,6 +74,11 @@ class Timer:
                     self.start_time = datetime.fromisoformat(state["start_time"])
                 else:
                     self.start_time = datetime.min
+                # Load elapsed_time for paused stopwatch
+                if "elapsed_seconds" in state:
+                    self.elapsed_time = timedelta(seconds=state["elapsed_seconds"])
+                else:
+                    self.elapsed_time = timedelta(0)
         except (FileNotFoundError, json.JSONDecodeError, KeyError, ValueError) as e:
             logging.warning(f"Failed to load state, resetting: {e}")
             self.clear()  # Reset to default if loading fails
@@ -82,6 +89,7 @@ class Timer:
             "end_time": self.end_time.isoformat(),
             "stopped_time": self.stopped_time.isoformat(),
             "start_time": self.start_time.isoformat(),  # Save start_time for stopwatch
+            "elapsed_seconds": self.elapsed_time.total_seconds(),  # Save elapsed_time for paused stopwatch
         }
         try:
             with open(self.state_file, "w") as f:
@@ -102,6 +110,7 @@ class Timer:
         self.end_time = datetime.now() + duration
         self.stopped_time = datetime.min
         self.start_time = datetime.min  # Reset stopwatch time
+        self.elapsed_time = timedelta(0)  # Reset elapsed time
         if duration.total_seconds() > 0:
             play_sound("nier_enter.mp3")
         else:  # Handle setting timer to 0 immediately
@@ -139,6 +148,9 @@ class Timer:
             else:
                 logging.warning("Invalid state detected in read() for STOPWATCH.")
                 return timedelta(0)
+        elif self.state == TimerState.STOPWATCH_PAUSED:
+            # Return the stored elapsed time
+            return self.elapsed_time
 
         return timedelta(0)
 
@@ -182,7 +194,10 @@ class Timer:
                 "class": css_class,
                 "tooltip": f"Timer: {tooltip_state}\nEnds at: {self.end_time.strftime('%H:%M:%S') if self.end_time > datetime.min else 'N/A'}",
             }
-        elif self.state == TimerState.STOPWATCH:
+        elif (
+            self.state == TimerState.STOPWATCH
+            or self.state == TimerState.STOPWATCH_PAUSED
+        ):
             # Calculate elapsed time for stopwatch
             elapsed_time = self.read()
             total_seconds = int(elapsed_time.total_seconds())
@@ -197,10 +212,20 @@ class Timer:
             else:
                 time_display = f"{minutes}:{str(seconds).zfill(2)}"
 
+            # Use different icon and class for active vs paused stopwatch
+            is_active = self.state == TimerState.STOPWATCH
+            icon = "⏱️" if is_active else "󰏤"
+            css_class = "stopwatch" if is_active else "stopwatch-paused"
+            tooltip_state = "Running" if is_active else "Paused"
+            tooltip_text = f"Stopwatch: {tooltip_state}"
+
+            if is_active and self.start_time > datetime.min:
+                tooltip_text += f"\nStarted at: {self.start_time.strftime('%H:%M:%S')}"
+
             return {
-                "text": f"<span font='{FONT_SIZE}' rise='-2000'>⏱️</span> {time_display}",
-                "class": "stopwatch",
-                "tooltip": f"Stopwatch: Running\nStarted at: {self.start_time.strftime('%H:%M:%S')}",
+                "text": f"<span font='{FONT_SIZE}' rise='-2000'>{icon}</span> {time_display}",
+                "class": css_class,
+                "tooltip": tooltip_text,
             }
         else:  # Should not happen with Enum, but good practice
             return {
@@ -242,6 +267,22 @@ class Timer:
             self.stopped_time = datetime.min  # Reset stopped time
             logging.info("Started timer")
             play_sound("nier_select.mp3")
+        elif self.state == TimerState.STOPWATCH:
+            # Pause the stopwatch
+            self.state = TimerState.STOPWATCH_PAUSED
+            # Calculate elapsed time up to now and store it
+            if self.start_time > datetime.min:
+                self.elapsed_time = datetime.now() - self.start_time
+            self.start_time = datetime.min  # Clear start time
+            logging.info("Paused stopwatch")
+            play_sound("nier_cancel.mp3")
+        elif self.state == TimerState.STOPWATCH_PAUSED:
+            # Resume the stopwatch
+            self.state = TimerState.STOPWATCH
+            # Set start time to now minus the elapsed time
+            self.start_time = datetime.now() - self.elapsed_time
+            logging.info("Resumed stopwatch")
+            play_sound("nier_select.mp3")
         elif self.state == TimerState.TIMEOUT:
             self.clear()  # Clear on toggle if timed out
             return
@@ -256,6 +297,7 @@ class Timer:
         self.start_time = datetime.now()
         self.end_time = datetime.min
         self.stopped_time = datetime.min
+        self.elapsed_time = timedelta(0)
         self.save_state()
         logging.info("Started stopwatch")
         play_sound("nier_enter.mp3")
@@ -266,6 +308,7 @@ class Timer:
         self.end_time = datetime.min
         self.stopped_time = datetime.min
         self.start_time = datetime.min
+        self.elapsed_time = timedelta(0)
         self.save_state()
         logging.info("Cleared timer")
 
