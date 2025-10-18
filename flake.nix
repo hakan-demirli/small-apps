@@ -15,7 +15,10 @@
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = ((import ./overlay.nix) { }).nixpkgs.overlays;
+        };
         lib = nixpkgs.lib;
 
         findPackageDirs = path: lib.filterAttrs (name: type: type == "directory") (builtins.readDir path);
@@ -32,15 +35,20 @@
         myPackages = buildPackages ./pkgs;
       in
       {
-        packages = myPackages // {
-          default = pkgs.buildEnv {
-            name = "small-apps-bundle-${system}";
-            paths = lib.attrValues myPackages;
-            meta = {
-              description = "Build environment containing all small-apps";
+        packages =
+          myPackages
+          // {
+            default = pkgs.buildEnv {
+              name = "small-apps-bundle-${system}";
+              paths = lib.attrValues myPackages;
+              meta = {
+                description = "Build environment containing all small-apps";
+              };
             };
+          }
+          // {
+            ytdlpp = pkgs.yt-dlp;
           };
-        };
         overlays.default = final: prev: myPackages;
       }
     );
