@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import http.server
-import socketserver
 import json
-import os
-import threading
 import mimetypes  # Needed for guessing MIME type
-from pathlib import Path
+import os
+import socketserver
 import sys  # For error messages
+import threading
+from pathlib import Path
 
 # --- Configuration ---
 HOST = "localhost"
@@ -37,7 +37,7 @@ def load_state():
         if not STATE_FILE_PATH.is_file():
             return {"tabs": [{"name": "Home", "items": []}], "activeTab": 0}
         try:
-            with open(STATE_FILE_PATH, "r", encoding="utf-8") as f:
+            with open(STATE_FILE_PATH, encoding="utf-8") as f:
                 data = json.load(f)
                 if (
                     not isinstance(data, dict)
@@ -122,7 +122,7 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"Wallpaper source file not found: {file_path}", file=sys.stderr)
             # Send 404 from here if desired, or let the main GET handler do it
             return False
-        except IOError as e:
+        except OSError as e:
             print(f"Error reading wallpaper file {file_path}: {e}", file=sys.stderr)
             # Could send 500 here, but maybe 404 is safer if file becomes unreadable
             return False
@@ -218,7 +218,7 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self._send_response(
                     400,
                     "application/json",
-                    f'{{"error": "Bad Request: {ve}"}}'.encode("utf-8"),
+                    f'{{"error": "Bad Request: {ve}"}}'.encode(),
                 )
             except Exception as e:
                 print(f"Error processing POST /api/state: {e}", file=sys.stderr)

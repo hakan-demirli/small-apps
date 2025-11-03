@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import time
+
 from prometheus_client import Gauge, start_http_server
 
 # Define Prometheus gauge that uses client_class, title, and focus_history_id as labels
@@ -53,7 +54,7 @@ if __name__ == "__main__":
         exporter_addr = os.environ["EXPORTER_ADDR"]
         exporter_port = int(os.environ["EXPORTER_WINDOW_PORT"])
     except KeyError as e:
-        raise EnvironmentError(f"Missing required environment variable: {e}")
+        raise OSError(f"Missing required environment variable: {e}") from e
 
     start_http_server(port=exporter_port, addr=exporter_addr)
     update_clients()

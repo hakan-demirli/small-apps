@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import socket
-import json
 import argparse
+import json
 import os
+import socket
 import sys
 
 

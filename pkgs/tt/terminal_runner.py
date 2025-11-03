@@ -1,8 +1,7 @@
 import os
-import re
 import pty
+import re
 import subprocess
-from typing import List
 
 
 class TerminalRunner:
@@ -68,17 +67,17 @@ class TerminalRunner:
         ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
         return ansi_escape.sub("", line)
 
-    def get_colored_lines(self, command) -> List[str]:
+    def get_colored_lines(self, command) -> list[str]:
         clines = self.run_colored(command).splitlines()
         clines = [line for line in clines if line]
         return clines
 
-    def get_colorless_lines(self, command) -> List[str]:
+    def get_colorless_lines(self, command) -> list[str]:
         lines = self.run(command).splitlines()
         lines = [line for line in lines if line]
         return lines
 
-    def render_screen(self, lines: List[str], typing_line: str = "") -> None:
+    def render_screen(self, lines: list[str], typing_line: str = "") -> None:
         print("\033[?25l", end="")  # Hide the cursor
         print("\033[s", end="")  # Save cursor position
         print("\033[J", end="")  # clear to the end
@@ -91,8 +90,8 @@ class TerminalRunner:
         # Restore cursor position
         print("\033[u", end="", flush=True)
 
-    def highlight_line(self, index, lines, color_code) -> List[str]:
-        for i, line in enumerate(lines):
+    def highlight_line(self, index, lines, color_code) -> list[str]:
+        for i, _ in enumerate(lines):
             if i == index:
                 lines[i] = self.strip_color_codes(lines[i])
                 lines[i] = "\033[" + color_code + "m" + lines[i] + "\033[0m"

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa E402
 
 import signal
 
@@ -49,7 +50,7 @@ def reload_html():
             or current_file_hash != last_file_hash
         ):
             print("HTML file changed, reloading...")
-            with open(HTML_FILE, "r") as f:
+            with open(HTML_FILE) as f:
                 html_content = f.read()
             socketio.emit("html_reload", {"html": html_content})
             last_modified_time = current_modified_time
@@ -73,7 +74,7 @@ def background_file_monitor():
 @app.route("/")
 def index():
     print("Index route accessed")
-    with open(HTML_FILE, "r") as f:
+    with open(HTML_FILE) as f:
         html_content = f.read()
     return html_content
 

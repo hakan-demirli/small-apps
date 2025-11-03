@@ -16,7 +16,7 @@ pkgs.stdenv.mkDerivation {
   ];
   dontUnpack = true;
 
-  src = ../quantifyself-webui;
+  src = ./.;
 
   installPhase = ''
     mkdir -p $out/bin

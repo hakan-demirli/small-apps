@@ -64,7 +64,7 @@ class Timer:
 
     def load_state(self) -> None:
         try:
-            with open(self.state_file, "r") as f:
+            with open(self.state_file) as f:
                 state = json.load(f)
                 self.state = TimerState(state["state"])
                 self.end_time = datetime.fromisoformat(state["end_time"])
@@ -94,7 +94,7 @@ class Timer:
         try:
             with open(self.state_file, "w") as f:
                 json.dump(state, f)
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Failed to save state: {e}")
 
     def set(self, minutes: int) -> None:

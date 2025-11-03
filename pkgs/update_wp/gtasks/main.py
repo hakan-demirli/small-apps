@@ -108,7 +108,7 @@ def parse_args():
 
 
 def auth(service: googleapi.GoogleApiService, file: str):
-    with open(file, "r") as src_file:
+    with open(file) as src_file:
         service.save_credentials(src_file.read())
 
 
@@ -146,7 +146,7 @@ def insert_newlines(text, line_length=33, offset=0):
 def view_task_lists(service: googleapi.GoogleApiService):
     fetch_task_lists(service)
     OUTPUT_DIR = tempfile.gettempdir()
-    with open(OUTPUT_DIR + "/gtasks.txt", "r") as f:
+    with open(OUTPUT_DIR + "/gtasks.txt") as f:
         for line in f:
             print(line)
 

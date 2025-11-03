@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import subprocess
 import re
+import subprocess
 
 
 def get_active_sink_status():

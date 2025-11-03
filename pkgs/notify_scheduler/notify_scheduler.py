@@ -26,12 +26,12 @@ if not os.path.exists(CONFIG_FILE):
     )
     exit(1)
 
-with open(CONFIG_FILE, "r") as f:
+with open(CONFIG_FILE) as f:
     config = json.load(f)
 
 # Load or initialize state
 if os.path.exists(STATE_FILE):
-    with open(STATE_FILE, "r") as f:
+    with open(STATE_FILE) as f:
         state = json.load(f)
 else:
     state = {}

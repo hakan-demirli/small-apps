@@ -51,7 +51,7 @@ def load_or_create_config():
 
     if os.path.exists(QUANTIFYSELF_CONFIG_FILE):
         try:
-            with open(QUANTIFYSELF_CONFIG_FILE, "r") as f:
+            with open(QUANTIFYSELF_CONFIG_FILE) as f:
                 config = json.load(f)
             logger.info("Config loaded from file.")
         except Exception as e:

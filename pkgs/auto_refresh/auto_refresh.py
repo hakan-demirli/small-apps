@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa E402
 
 import logging
 import os
@@ -9,7 +10,7 @@ import gi
 
 gi.require_version("GUdev", "1.0")
 
-from gi.repository import GLib, GUdev  # noqa: E42
+from gi.repository import GLib, GUdev
 
 LOG_FILE_PATH = os.path.expanduser("~/.cache/auto_refresh/log.txt")
 CONFIG_FILE_PATH = os.path.expanduser("~/.config/hypr/monitors.conf")
@@ -34,14 +35,14 @@ def sed(regex: str, path: str):
     command = ["sed", "-i", regex, path]
     logging.info(f"Running command: {' '.join(command)}")
     try:
-        result = subprocess.run(
-            command, check=True, capture_output=True, text=True
-        )
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
         logging.info("Command executed successfully.")
         if result.stderr:
             logging.warning(f"[sed stderr]: {result.stderr.strip()}")
     except FileNotFoundError:
-        logging.error(f"sed command not found. Please ensure 'sed' is installed and in your PATH.")
+        logging.error(
+            "sed command not found. Please ensure 'sed' is installed and in your PATH."
+        )
     except subprocess.CalledProcessError as e:
         logging.error(f"Command failed with exit code {e.returncode}")
         logging.error(f"[sed stdout]: {e.stdout.strip()}")
@@ -55,16 +56,16 @@ def reload_hyprland():
     command = ["hyprctl", "reload"]
     logging.info(f"Running command: {' '.join(command)}")
     try:
-        result = subprocess.run(
-            command, check=True, capture_output=True, text=True
-        )
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
         logging.info("Hyprland reloaded successfully.")
         if result.stdout:
             logging.info(f"[hyprctl stdout]: {result.stdout.strip()}")
         if result.stderr:
             logging.warning(f"[hyprctl stderr]: {result.stderr.strip()}")
     except FileNotFoundError:
-        logging.error(f"hyprctl command not found. Please ensure Hyprland is running and 'hyprctl' is in your PATH.")
+        logging.error(
+            "hyprctl command not found. Please ensure Hyprland is running and 'hyprctl' is in your PATH."
+        )
     except subprocess.CalledProcessError as e:
         logging.error(f"Command failed with exit code {e.returncode}")
         logging.error(f"[hyprctl stdout]: {e.stdout.strip()}")
@@ -77,16 +78,20 @@ def set_refresh_rate(target_rate: int):
     """Sets the refresh rate by modifying the config file, but only if the TARGET_MONITOR is found."""
     if target_rate == MAX_REFRESH_RATE:
         from_rate, to_rate = MIN_REFRESH_RATE, MAX_REFRESH_RATE
-        logging.info(f"AC power connected. Attempting to set refresh rate to max for {TARGET_MONITOR}.")
+        logging.info(
+            f"AC power connected. Attempting to set refresh rate to max for {TARGET_MONITOR}."
+        )
     elif target_rate == MIN_REFRESH_RATE:
         from_rate, to_rate = MAX_REFRESH_RATE, MIN_REFRESH_RATE
-        logging.info(f"AC power disconnected. Attempting to set refresh rate to min for {TARGET_MONITOR}.")
+        logging.info(
+            f"AC power disconnected. Attempting to set refresh rate to min for {TARGET_MONITOR}."
+        )
     else:
         logging.error(f"Invalid target rate: {target_rate}")
         return
 
     try:
-        with open(CONFIG_FILE_PATH, "r") as file:
+        with open(CONFIG_FILE_PATH) as file:
             file_lines = file.readlines()
 
         target_line = None
@@ -101,9 +106,13 @@ def set_refresh_rate(target_rate: int):
                 sed(regex, CONFIG_FILE_PATH)
                 reload_hyprland()
             else:
-                logging.info(f"Refresh rate for {TARGET_MONITOR} is not @{from_rate}. No change needed.")
+                logging.info(
+                    f"Refresh rate for {TARGET_MONITOR} is not @{from_rate}. No change needed."
+                )
         else:
-            logging.warning(f"Target '{TARGET_MONITOR}' not found in {CONFIG_FILE_PATH}. No changes made.")
+            logging.warning(
+                f"Target '{TARGET_MONITOR}' not found in {CONFIG_FILE_PATH}. No changes made."
+            )
 
     except FileNotFoundError:
         logging.error(f"Config file not found at: {CONFIG_FILE_PATH}")
@@ -115,7 +124,7 @@ def check_initial_power_status():
     """Initially, AC status can be unreliable. Retry until it is valid."""
     while True:
         try:
-            with open(AC_STATUS_FILE_PATH, "r") as file:
+            with open(AC_STATUS_FILE_PATH) as file:
                 online = file.read().strip()
                 logging.info(f"[Initial check] Raw power status is '{online}'")
                 if online == "0":
@@ -125,9 +134,13 @@ def check_initial_power_status():
                     set_refresh_rate(MAX_REFRESH_RATE)
                     break
                 else:
-                    logging.warning(f"[Initial check] Invalid status: {online}. Retrying...")
+                    logging.warning(
+                        f"[Initial check] Invalid status: {online}. Retrying..."
+                    )
         except FileNotFoundError:
-            logging.error(f"AC status file not found at {AC_STATUS_FILE_PATH}. Exiting.")
+            logging.error(
+                f"AC status file not found at {AC_STATUS_FILE_PATH}. Exiting."
+            )
             exit(1)
         except Exception as e:
             logging.exception(f"Error during initial check: {e}. Retrying...")

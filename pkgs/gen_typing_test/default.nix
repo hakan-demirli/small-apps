@@ -11,7 +11,7 @@ pkgs.stdenv.mkDerivation {
   ];
   dontUnpack = true;
 
-  src = ../gen_typing_test;
+  src = ./.;
 
   installPhase = ''
     mkdir -p $out/bin

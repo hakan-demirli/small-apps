@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
+# ruff: noqa E402
 
 import argparse
-import gi
-import os
-import socket
 import json
 import logging
+import os
 import signal
+import socket
 import sys
+
+import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
@@ -52,7 +54,7 @@ class GtkIndicator:
 
     def load_icons(self):
         try:
-            with open(self.config_path, "r") as file:
+            with open(self.config_path) as file:
                 return json.load(file)
         except FileNotFoundError:
             print(f"Configuration file {self.config_path} not found.")
@@ -171,7 +173,7 @@ class GtkIndicator:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as test_sock:
                 test_sock.connect(socket_path)
             return True
-        except socket.error:
+        except OSError:
             return False
 
 

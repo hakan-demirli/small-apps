@@ -61,7 +61,7 @@ def load_or_create_config():
     def load_config_file(path):
         if os.path.exists(path):
             try:
-                with open(path, "r") as f:
+                with open(path) as f:
                     logger.info(f"Config file loaded from {f}.")
                     return json.load(f)
             except Exception as e:
@@ -87,11 +87,11 @@ def load_or_create_config():
 
 class WindowWatcher:
     def __init__(self, config: dict):
-        self.port = int(config.get("port", None))
-        self.host = str(config.get("host", None))
-        self.poll_time = int(config.get("poll_time", None))
-        self.filter = list(config.get("filter", None))
-        self.database_path = config.get("database_path", None)
+        self.port = int(config.get("port"))
+        self.host = str(config.get("host"))
+        self.poll_time = int(config.get("poll_time"))
+        self.filter = list(config.get("filter"))
+        self.database_path = config.get("database_path")
 
         if self.host is None:
             raise TypeError("host is None")

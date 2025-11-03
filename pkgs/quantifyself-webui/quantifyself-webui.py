@@ -38,7 +38,7 @@ def load_or_create_config():
 
     if os.path.exists(APP_CONFIG_FILE):
         try:
-            with open(APP_CONFIG_FILE, "r") as f:
+            with open(APP_CONFIG_FILE) as f:
                 config = json.load(f)
             logger.info("Config loaded from file.")
         except Exception as e:
@@ -70,7 +70,7 @@ def serve_window_categories():
     """Serve the window_categories.json file."""
     try:
         if os.path.exists(WINDOW_CATEGORIES_FILE):
-            with open(WINDOW_CATEGORIES_FILE, "r") as f:
+            with open(WINDOW_CATEGORIES_FILE) as f:
                 categories = json.load(f)
             return jsonify(categories)
         else:

@@ -15,7 +15,7 @@ pkgs.stdenv.mkDerivation {
   ];
   dontUnpack = true;
 
-  src = ../update_wp;
+  src = ./.;
 
   installPhase = ''
     mkdir -p $out/bin

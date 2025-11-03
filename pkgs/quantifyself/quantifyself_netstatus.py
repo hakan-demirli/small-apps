@@ -44,7 +44,7 @@ def load_or_create_config():
     def load_config_file(path):
         if os.path.exists(path):
             try:
-                with open(path, "r") as f:
+                with open(path) as f:
                     logger.info(f"Config file loaded from {path}.")
                     return json.load(f)
             except Exception as e:
@@ -89,11 +89,11 @@ def get_connection_info():
 # NetworkWatcher class
 class NetworkWatcher:
     def __init__(self, config: dict):
-        self.port = int(config.get("port", None))
-        self.host = str(config.get("host", None))
-        self.poll_time = int(config.get("poll_time", None))
-        self.poll_host = config.get("poll_host", None)
-        self.database_path = config.get("database_path", None)
+        self.port = int(config.get("port"))
+        self.host = str(config.get("host"))
+        self.poll_time = int(config.get("poll_time"))
+        self.poll_host = config.get("poll_host")
+        self.database_path = config.get("database_path")
 
         if self.host is None:
             raise TypeError("host is None")
@@ -178,7 +178,7 @@ class NetworkWatcher:
                 # WARNING: 80 hard coded port?
                 with socket.create_connection((self.poll_host, 80), timeout=5):
                     latencies.append(time.time() - start_time)
-            except socket.error:
+            except OSError:
                 pass
 
             if latencies:
@@ -205,7 +205,7 @@ class NetworkWatcher:
                 metrics["dns_resolution_time"] = round(
                     (time.time() - start_time) * 1000, 2
                 )  # DNS resolution time in ms
-            except socket.error:
+            except OSError:
                 metrics["dns_resolution_time"] = None
 
             # Connection type and network name

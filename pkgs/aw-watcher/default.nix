@@ -2,7 +2,7 @@
 pkgs.stdenv.mkDerivation {
   name = "aw-watchers-mine";
 
-  nativeBuildInputs = with pkgs; [ ];
+  nativeBuildInputs = [ ];
 
   propagatedBuildInputs = [
     (pkgs.python3.withPackages (
@@ -18,7 +18,7 @@ pkgs.stdenv.mkDerivation {
   ];
   dontUnpack = true;
 
-  src = ../aw-watcher;
+  src = ./.;
 
   installPhase = ''
     mkdir -p $out/bin

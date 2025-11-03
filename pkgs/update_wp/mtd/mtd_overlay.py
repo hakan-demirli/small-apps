@@ -27,7 +27,7 @@ def main():
     if not os.path.isfile(mtdr_file):
         open(mtdr_file, "a").close()
 
-    with open(mtdr_file, "r") as mtdr:
+    with open(mtdr_file) as mtdr:
         mtd_contents = mtdr.readlines()
         mtd_contents = [line for line in mtd_contents if line.strip() != ""]
 

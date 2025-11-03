@@ -3,12 +3,12 @@
 import argparse
 import logging
 import os
-import tomllib
+import platform
 from datetime import datetime, timezone
 from time import sleep
-import platform
-import psutil
 
+import psutil
+import tomllib
 from aw_client import ActivityWatchClient
 from aw_core.log import setup_logging
 from aw_core.models import Event

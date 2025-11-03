@@ -41,7 +41,10 @@ class Task:
             and self.note == other.note
             and self.status == other.status
             and len(self.subtasks) == len(other.subtasks)
-            and not any(st != ot for (st, ot) in zip(self.subtasks, other.subtasks))
+            and not any(
+                st != ot
+                for (st, ot) in zip(self.subtasks, other.subtasks, strict=False)
+            )
         )
 
     def __str__(self) -> str:
@@ -73,7 +76,9 @@ class TaskList:
         return (
             self.title == other.title
             and len(self.tasks) == len(other.tasks)
-            and not any(st != ot for (st, ot) in zip(self.tasks, other.tasks))
+            and not any(
+                st != ot for (st, ot) in zip(self.tasks, other.tasks, strict=False)
+            )
         )
 
     def __str__(self) -> str:

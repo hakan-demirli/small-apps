@@ -5,7 +5,7 @@ import os
 import sys
 import termios
 import tty
-from typing import Final, Tuple
+from typing import Final
 
 from terminal_runner import TerminalRunner
 
@@ -40,22 +40,20 @@ class State:
 
     def get_task_list_command(self):
         if self.current_list == "(none)":
-            return TASK_LIST_COMMAND + ["-PROJECT"]
+            return [*TASK_LIST_COMMAND, "-PROJECT"]
         elif self.current_list == "":
             return TASK_LIST_COMMAND
         else:
-            return TASK_LIST_COMMAND + [f"project:{self.current_list}"]
+            return [*TASK_LIST_COMMAND, f"project:{self.current_list}"]
 
     def get_task_add_command(self):
-        if self.current_list == "(none)":
-            return TASK_LIST_ADD_COMMAND
-        elif self.current_list == "":
+        if self.current_list == "(none)" or self.current_list == "":
             return TASK_LIST_ADD_COMMAND
         else:
-            return TASK_LIST_ADD_COMMAND + [f"project:{self.current_list}"]
+            return [*TASK_LIST_ADD_COMMAND, f"project:{self.current_list}"]
 
 
-def getkey() -> Tuple[bytes, str]:
+def getkey() -> tuple[bytes, str]:
     """Read key press. This is a blocking function."""
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
@@ -290,7 +288,7 @@ def task_summary_find_key(key: str, state: State) -> State:
 
     lines = TerminalRunner().get_colorless_lines(TASK_SUMMARY_COMMAND)
 
-    for idx, line in enumerate(lines):
+    for idx, _ in enumerate(lines):
         if not idx:
             continue
         saved_word = lines[idx].split()[0]
@@ -376,13 +374,15 @@ def task_list_insert(key: str, state: State) -> State:
             state.list_state = "normal"
             if state.list_insert_state == "add":
                 _ = TerminalRunner().run(
-                    state.get_task_add_command() + [state.input_string]
+                    [*state.get_task_add_command(), state.input_string]
                 )
             elif state.list_insert_state == "modify":
                 _ = TerminalRunner().run(
-                    TASK_LIST_MODIFY_COMMAND
-                    + [str(index_to_id(state.list_index))]
-                    + [state.input_string]
+                    [
+                        *TASK_LIST_MODIFY_COMMAND,
+                        str(index_to_id(state.list_index)),
+                        state.input_string,
+                    ]
                 )
             else:
                 raise ValueError
@@ -404,16 +404,16 @@ def task_list_toggle_active(key: str, state: State) -> State:
         return int(lines[idx + 1].split()[0])
 
     cmd = ""
-    cmd = TASK_INFO_COMMAND + [str(index_to_id(state.list_index))]
+    cmd = [*TASK_INFO_COMMAND, str(index_to_id(state.list_index))]
     status = TerminalRunner().run(cmd)
 
     cmd = ""
     for line in status.splitlines():
         if "Virtual tags" in line and "ACTIVE" in line:
-            cmd = TASK_LIST_STOP_COMMAND + [str(index_to_id(state.list_index))]
+            cmd = [*TASK_LIST_STOP_COMMAND, str(index_to_id(state.list_index))]
             _ = TerminalRunner().run(cmd)
             return task_list_move_top(key, state)
-    cmd = TASK_LIST_START_COMMAND + [str(index_to_id(state.list_index))]
+    cmd = [*TASK_LIST_START_COMMAND, str(index_to_id(state.list_index))]
     _ = TerminalRunner().run(cmd)
     return task_list_move_top(key, state)
 
@@ -423,7 +423,7 @@ def task_list_done(key: str, state: State) -> State:
         lines = TerminalRunner().get_colorless_lines(state.get_task_list_command())
         return int(lines[idx + 1].split()[0])
 
-    cmd = TASK_LIST_DONE_COMMAND + [str(index_to_id(state.list_index))]
+    cmd = [*TASK_LIST_DONE_COMMAND, str(index_to_id(state.list_index))]
     _ = TerminalRunner().run(cmd)
     return task_list_move_top(key, state)
 

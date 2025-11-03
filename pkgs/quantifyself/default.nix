@@ -16,7 +16,7 @@ pkgs.stdenv.mkDerivation {
   ];
   dontUnpack = true;
 
-  src = ../quantifyself;
+  src = ./.;
 
   installPhase = ''
     mkdir -p $out/bin

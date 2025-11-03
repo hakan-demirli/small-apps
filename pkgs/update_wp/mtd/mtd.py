@@ -30,12 +30,12 @@ def update_mtd_file(mtd_file, mtdr_file):
             current_day = today
 
             # Read contents of mtdr.md
-            with open(mtdr_file, "r") as mtdr:
+            with open(mtdr_file) as mtdr:
                 mtdr_contents = mtdr.readlines()
                 mtdr_contents = [line for line in mtdr_contents if line.strip() != ""]
 
             # Read contents of mtd.md
-            with open(mtd_file, "r") as mtd:
+            with open(mtd_file) as mtd:
                 mtd_contents = mtd.readlines()
                 mtd_contents = [
                     line for line in mtd_contents if not line.startswith("[ ]")

@@ -57,7 +57,7 @@ def sanitize_string(input_str):
 
     substitutions_path = CONFIG["SUBSTITUTIONS"]
     if substitutions_path.exists():
-        with open(substitutions_path, "r") as f:
+        with open(substitutions_path) as f:
             substitutions = json.load(f)
         for contraction, expanded in substitutions.items():
             input_str = input_str.replace(contraction, expanded)

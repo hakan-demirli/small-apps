@@ -124,7 +124,7 @@ def discover_and_sync_playlists(music_dir, max_size):
             metadata_file = os.path.join(full_submodule_path, "metadata.json")
             if os.path.exists(metadata_file):
                 print(f"  [+] Found submodule: {submodule_path}")
-                with open(metadata_file, "r") as f:
+                with open(metadata_file) as f:
                     try:
                         metadata = json.load(f)
                         playlist_url = metadata.get("playlist_url")
@@ -170,7 +170,7 @@ def create_m3u8_playlists(directory):
                     unique_audio_entries.add(f"./{base_name}")
 
         if unique_audio_entries:
-            sorted_audio_files = sorted(list(unique_audio_entries))
+            sorted_audio_files = sorted(unique_audio_entries)
 
             playlist_name = f"{Path(dirpath).name}.m3u8"
             playlist_path = os.path.join(dirpath, playlist_name)
@@ -191,7 +191,7 @@ def clean_dir(directory):
     ]
     print("\nCleaning up auxiliary files...")
     for file_type in file_types:
-        for dirpath, dirnames, filenames in os.walk(directory):
+        for dirpath, _, _ in os.walk(directory):
             for file in glob.glob(os.path.join(dirpath, file_type)):
                 if os.path.basename(file) == "metadata.json":
                     continue

@@ -5,15 +5,15 @@ import logging
 import os
 import socket
 import time
-import requests
 from datetime import datetime, timezone
-from time import sleep
 from statistics import mean
+from time import sleep
 
+import requests
+import tomllib  # Python 3.11+ for reading TOML files
 from aw_client import ActivityWatchClient
 from aw_core.log import setup_logging
 from aw_core.models import Event
-import tomllib  # Python 3.11+ for reading TOML files
 
 # Default settings
 default_settings = {
@@ -57,10 +57,10 @@ def load_or_create_config():
                 f.write("# Configuration for aw-watcher-netstatus\n")
                 f.write("[default]\n")
                 for key, value in default_settings.items():
-                    f.write(f"{key} = {repr(value)}\n")
+                    f.write(f"{key} = {value!r}\n")
                 f.write("\n[testing]\n")
                 for key, value in default_testing_settings.items():
-                    f.write(f"{key} = {repr(value)}\n")
+                    f.write(f"{key} = {value!r}\n")
             logger.info(f"Config file created at {CONFIG_FILE} with default settings.")
         except Exception as e:
             logger.error(f"Failed to create config file: {e}")
@@ -143,7 +143,7 @@ class NetworkWatcher:
                         (host, self.settings.port), timeout=5
                     ):
                         latencies.append(time.time() - start_time)
-                except socket.error:
+                except OSError:
                     pass
 
             if latencies:
@@ -173,7 +173,7 @@ class NetworkWatcher:
                 metrics["dns_resolution_time"] = round(
                     (time.time() - start_time) * 1000, 2
                 )  # DNS resolution time in ms
-            except socket.error:
+            except OSError:
                 metrics["dns_resolution_time"] = None
 
         except Exception as e:

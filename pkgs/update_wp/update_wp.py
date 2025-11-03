@@ -8,8 +8,6 @@ import string
 import subprocess
 import tempfile
 
-from PIL import Image
-
 from add_gtasks_overlay import main as add_gtasks_overlay
 from add_ics_overlay import main as add_ics_overlay
 
@@ -20,6 +18,7 @@ from ics.ics_overlay import main as ics_overlay
 
 # from mtd.mtd_overlay import main as mtd_overlay
 from left.left_overlay import main as left_overlay
+from PIL import Image
 
 script_dir = pathlib.Path(os.path.realpath(__file__)).parent.absolute()
 config_dir = os.path.expanduser("~/.config/mylib/")  # ABS_PATH: fix pls
@@ -42,7 +41,7 @@ def findFirefoxProfileFolder():
     ]
     for location in locations:
         if os.path.exists(location):
-            with open(location, "r") as file:
+            with open(location) as file:
                 for line in file:
                     key = "Path="
                     if line.startswith(key):
@@ -55,7 +54,7 @@ def findFirefoxProfileFolder():
 def removeAllFiles(dir: str, extensions: list) -> None:
     print("Start removing old wallpapers:")
     for ext in extensions:
-        for index, path in enumerate(pathlib.Path(dir).glob(ext)):
+        for _, path in enumerate(pathlib.Path(dir).glob(ext)):
             print(f"Removing: {path}")
             os.remove(path)
 
@@ -93,7 +92,7 @@ def launch_onscreen_overlay(task_file_path: str) -> None:
     subprocess.run(["pkill", "activate-linux"])
 
     task = ""
-    with open(task_file_path, "r") as f:
+    with open(task_file_path) as f:
         lines = f.readlines()
         task = lines[0].strip()  # Strip newline characters
 

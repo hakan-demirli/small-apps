@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import argparse
-import random
-import pathlib
 import os
+import pathlib
+import random
 
 
 class ContentGenerator:
@@ -14,7 +14,7 @@ class ContentGenerator:
     def get_words_from_file(self):
         script_dir = pathlib.Path(os.path.realpath(__file__)).parent.absolute()
         words_file = script_dir / "words.txt"
-        with open(words_file, "r") as f:
+        with open(words_file) as f:
             words = f.read().splitlines()
         return words
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-from prometheus_client import start_http_server, Gauge
 import os
 import socket
 import time
-import requests
 from statistics import mean
+
+import requests
+from prometheus_client import Gauge, start_http_server
 
 # Define metrics
 status_metric = Gauge("network_status", "Network status (1=online, 0=offline)")
@@ -39,7 +40,7 @@ class NetworkMetricsExporter:
                 try:
                     with socket.create_connection((host, self.port), timeout=5):
                         latencies.append(time.time() - start_time)
-                except socket.error:
+                except OSError:
                     pass
 
             if latencies:
@@ -67,7 +68,7 @@ class NetworkMetricsExporter:
                 metrics["dns_resolution_time"] = round(
                     (time.time() - start_time) * 1000, 2
                 )
-            except socket.error:
+            except OSError:
                 metrics["dns_resolution_time"] = None
 
         except Exception as e:
@@ -90,7 +91,7 @@ def main():
         exporter_addr = os.environ["EXPORTER_ADDR"]
         exporter_port = int(os.environ["EXPORTER_NETWORK_PORT"])
     except KeyError as e:
-        raise EnvironmentError(f"Missing required environment variable: {e}")
+        raise OSError(f"Missing required environment variable: {e}") from e
 
     hosts = ["google.com", "cloudflare.com"]
     port = 80

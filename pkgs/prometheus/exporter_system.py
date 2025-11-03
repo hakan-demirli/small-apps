@@ -122,7 +122,7 @@ if __name__ == "__main__":
         exporter_addr = os.environ["EXPORTER_ADDR"]
         exporter_port = int(os.environ["EXPORTER_SYSTEM_PORT"])
     except KeyError as e:
-        raise EnvironmentError(f"Missing required environment variable: {e}")
+        raise OSError(f"Missing required environment variable: {e}") from e
 
     # Start the Prometheus HTTP server
     start_http_server(port=exporter_port, addr=exporter_addr)

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import sys
 import argparse
 import os
 import re
+import sys
 
 
 def create_indent_agnostic_regex(block_string):
@@ -89,7 +89,7 @@ def run_preflight_checks(patches):
             continue
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
             errors.append(f"{check_prefix} FAILED (Could not read file: {e})")
@@ -129,18 +129,22 @@ def apply_patch(patch, dry_run=False):
 
     print(f"--- Applying patch to: {file_path}")
 
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         original_content = f.read()
 
     search_pattern = create_indent_agnostic_regex(search_block)
-    new_content, num_replacements = search_pattern.subn(replace_block, original_content, count=1)
+    new_content, num_replacements = search_pattern.subn(
+        replace_block, original_content, count=1
+    )
 
     if num_replacements != 1:
-        print(f"    [ERROR] Expected 1 replacement, but {num_replacements} occurred. Aborting this patch.")
+        print(
+            f"    [ERROR] Expected 1 replacement, but {num_replacements} occurred. Aborting this patch."
+        )
         return False
 
     if dry_run:
-        print(f"    [DRY RUN] Patch would be applied successfully.")
+        print("    [DRY RUN] Patch would be applied successfully.")
         print("    --- CHANGES PREVIEW ---")
         print(f"    - {search_block.strip()}")
         print(f"    + {replace_block.strip()}")
@@ -150,7 +154,7 @@ def apply_patch(patch, dry_run=False):
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(new_content)
-        print(f"    [SUCCESS] Patch applied.")
+        print("    [SUCCESS] Patch applied.")
         return True
     except Exception as e:
         print(f"    [ERROR] Could not write changes to file: {e}")
@@ -173,7 +177,7 @@ def main():
         print(f"Error: Patch file not found at '{args.patch_file}'")
         sys.exit(1)
 
-    with open(args.patch_file, "r", encoding="utf-8") as f:
+    with open(args.patch_file, encoding="utf-8") as f:
         patch_content = f.read()
 
     patches = list(parse_diff_fenced(patch_content))

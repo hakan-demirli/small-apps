@@ -15,7 +15,7 @@ pkgs.stdenv.mkDerivation {
   ];
   dontUnpack = true;
 
-  src = ../prometheus;
+  src = ./.;
 
   installPhase = ''
     mkdir -p $out/bin

@@ -18,7 +18,7 @@ pkgs.stdenv.mkDerivation {
   ];
   dontUnpack = true;
 
-  src = ../gtk_applet;
+  src = ./.;
 
   installPhase = ''
     mkdir -p $out/bin

@@ -28,7 +28,7 @@ def get_ics():
     ics_url_file = config_dir + "ics.json"
     ics_file = tempfile.gettempdir() + "/calendar_events.ics"
 
-    with open(ics_url_file, "r") as f:
+    with open(ics_url_file) as f:
         data = json.load(f)
     ics_url = data.get("ics_url")
 

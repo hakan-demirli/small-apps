@@ -5,7 +5,6 @@ import datetime
 import io
 import json
 import logging
-import os
 import pathlib
 import sys
 import tempfile
@@ -19,17 +18,19 @@ FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
 logging.basicConfig(format=FORMAT)
 logger.setLevel(logging.DEBUG)
 
-script_dir = pathlib.Path(os.path.realpath(__file__)).parent.absolute()
-config_dir = os.path.expanduser("~/.config/mylib/")  # ABS_PATH: fix pls
-font_file = os.path.expanduser(
-    "~/.local/share/fonts/anonymous.ttf"
-)  # ABS_PATH: fix pls
+# Use pathlib for more robust and modern path handling
+script_dir = pathlib.Path(__file__).parent.resolve()
+home = pathlib.Path.home()
+config_dir = home / ".config" / "mylib"  # ABS_PATH: fix pls
+font_file = home / ".local" / "share" / "fonts" / "anonymous.ttf"  # ABS_PATH: fix pls
 
-ics_url_file = config_dir + "ics.json"
-calendar_overlay_file = tempfile.gettempdir() + "/calendar_overlay.png"
-ics_file = tempfile.gettempdir() + "/calendar_events.ics"
+temp_dir = pathlib.Path(tempfile.gettempdir())
+ics_url_file = config_dir / "ics.json"
+calendar_overlay_file = temp_dir / "calendar_overlay.png"
+ics_file = temp_dir / "calendar_events.ics"
 
-with open(ics_url_file, "r") as f:
+
+with open(ics_url_file) as f:
     data = json.load(f)
 ics_url = data.get("ics_url")
 
@@ -39,12 +40,8 @@ def dateToEvent(day, month, year, parsed_events):
     events_on_date = []
 
     for event in parsed_events:
-        start_date = event.get("DTSTART;VALUE=DATE")
-        if not start_date:
-            start_date = event.get("DTSTART")
-        end_date = event.get("DTEND;VALUE=DATE")
-        if not end_date:
-            end_date = event.get("DTEND")
+        start_date = event.get("DTSTART;VALUE=DATE") or event.get("DTSTART")
+        end_date = event.get("DTEND;VALUE=DATE") or event.get("DTEND")
         if start_date and end_date:
             s = int(start_date.split("T")[0])
             t = int(target_date.split("T")[0])
@@ -57,7 +54,7 @@ def dateToEvent(day, month, year, parsed_events):
 
 def parseICSFile(filename):
     events = []
-    with open(filename, "r") as f:
+    with open(filename) as f:
         lines = f.readlines()
 
     event = {}
@@ -77,23 +74,16 @@ def parseICSFile(filename):
 def isPreviousMonth(month_year_string):
     current_date = datetime.datetime.now()
     input_date = datetime.datetime.strptime(month_year_string, "%B %Y")
-
-    if input_date.year < current_date.year:
-        return True
-    elif input_date.year == current_date.year and input_date.month < current_date.month:
-        return True
-    else:
-        return False
+    return (input_date.year, input_date.month) < (current_date.year, current_date.month)
 
 
 def isThisMonth(month_year_string):
     current_date = datetime.datetime.now()
     input_date = datetime.datetime.strptime(month_year_string, "%B %Y")
-
-    if input_date.year == current_date.year and input_date.month == current_date.month:
-        return True
-    else:
-        return False
+    return (input_date.year, input_date.month) == (
+        current_date.year,
+        current_date.month,
+    )
 
 
 def annotateDay(text, target_char, insert_char, pos):

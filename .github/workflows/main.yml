@@ -1,0 +1,50 @@
+name: "Nix Build and Test"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v11
+      - uses: DeterminateSystems/magic-nix-cache-action@v7
+      - name: Run Flake Check
+        run: nix flake check --all-systems
+
+  lint-and-format:
+    runs-on: ubuntu-latest
+    needs: [flake-check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v11
+      - uses: DeterminateSystems/magic-nix-cache-action@v7
+
+      - name: Run lint and format checks
+        run: bash .github/workflows/lint-and-format-check.sh
+
+  build-packages:
+    needs: [lint-and-format]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-latest
+          - system: aarch64-linux
+            runner: ubuntu-22.04-arm
+          - system: x86_64-darwin
+            runner: macos-latest
+
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v11
+      - uses: DeterminateSystems/magic-nix-cache-action@v7
+      - name: Build packages for ${{ matrix.system }}
+        run: nix build .#packages.${{ matrix.system }}.default

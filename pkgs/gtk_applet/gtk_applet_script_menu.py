@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa E402
 
 import os
 import signal

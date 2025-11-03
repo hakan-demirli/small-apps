@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-import requests
 import json
+
+import requests
 
 BASE_URL_SETTINGS = "http://localhost:5600/api/0/settings"
 BASE_URL_BUCKETS = "http://localhost:5600/api/0"
@@ -23,7 +24,7 @@ def get_all_settings(output_file):
 def set_settings(input_file):
     """Set settings from a JSON file."""
     try:
-        with open(input_file, "r") as f:
+        with open(input_file) as f:
             settings = json.load(f)
 
         for key, value in settings.items():
@@ -59,7 +60,7 @@ def get_all_buckets(output_file):
 def set_buckets(input_file):
     """Set buckets from a JSON file using multipart/form-data."""
     try:
-        with open(input_file, "r") as f:
+        with open(input_file) as f:
             buckets = json.load(f)
 
         # Prepare multipart form-data
