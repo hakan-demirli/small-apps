@@ -165,7 +165,13 @@ def main():
     parser = argparse.ArgumentParser(
         description="Apply custom patches in diff-fenced format with preflight checks."
     )
-    parser.add_argument("patch_file", help="Path to the patch file.")
+
+    parser.add_argument(
+        "patch_file",
+        nargs="?",
+        default=None,
+        help="Path to the patch file. If omitted, reads from stdin.",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -173,17 +179,30 @@ def main():
     )
     args = parser.parse_args()
 
-    if not os.path.exists(args.patch_file):
-        print(f"Error: Patch file not found at '{args.patch_file}'")
-        sys.exit(1)
+    patch_content = ""
 
-    with open(args.patch_file, encoding="utf-8") as f:
-        patch_content = f.read()
+    if args.patch_file:
+        if not os.path.exists(args.patch_file):
+            print(
+                f"Error: Patch file not found at '{args.patch_file}'", file=sys.stderr
+            )
+            sys.exit(1)
+        with open(args.patch_file, encoding="utf-8") as f:
+            patch_content = f.read()
+    else:
+        if sys.stdin.isatty():
+            print(
+                "Error: No patch file specified and no data piped from stdin.",
+                file=sys.stderr,
+            )
+            parser.print_usage(file=sys.stderr)
+            sys.exit(1)
+        patch_content = sys.stdin.read()
 
     patches = list(parse_diff_fenced(patch_content))
 
     if not patches:
-        print("No valid diff-fenced blocks found in the patch file.")
+        print("No valid diff-fenced blocks found in the input.")
         sys.exit(0)
 
     preflight_ok, errors = run_preflight_checks(patches)
