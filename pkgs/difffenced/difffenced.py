@@ -134,7 +134,7 @@ def apply_patch(patch, dry_run=False):
 
     search_pattern = create_indent_agnostic_regex(search_block)
     new_content, num_replacements = search_pattern.subn(
-        replace_block, original_content, count=1
+        lambda _: replace_block, original_content, count=1
     )
 
     if num_replacements != 1:
