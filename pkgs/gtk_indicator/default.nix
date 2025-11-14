@@ -3,7 +3,7 @@ pkgs.stdenv.mkDerivation {
   name = "gtk_indicator";
 
   nativeBuildInputs = with pkgs; [
-    wrapGAppsHook
+    wrapGAppsHook3
     gobject-introspection
     libappindicator
   ];
