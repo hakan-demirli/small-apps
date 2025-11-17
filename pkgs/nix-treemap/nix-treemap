@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -z ${1-} ]]; then
+  echo "Usage: $0 <path-to-nix-store-path-or-symlink>"
+  echo "Example: $0 ./result"
+  exit 1
+fi
+INPUT_PATH="$1"
+
+DEPS_SCRIPT="@depsScript@"
+VIEWER_HTML="@viewerHtml@"
+JQ_BIN="@jq@"
+
+TEMP_DIR=$(mktemp -d -t nix-treemap-XXXXXX)
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+JSON_OUTPUT="$TEMP_DIR/graph.json"
+FINAL_HTML_OUTPUT="$TEMP_DIR/final-treemap.html"
+
+echo "Generating dependency graph for '$INPUT_PATH'..."
+"$DEPS_SCRIPT" "$INPUT_PATH" "$JSON_OUTPUT"
+if [ ! -s "$JSON_OUTPUT" ]; then
+  echo "FATAL: Failed to generate dependency graph JSON."
+  exit 1
+fi
+
+echo "Embedding data into HTML viewer..."
+
+JSON_CONTENT=$("$JQ_BIN" -c . < "$JSON_OUTPUT")
+
+sed "s#null; /\* JSON_PLACEHOLDER \*/#${JSON_CONTENT}#" "$VIEWER_HTML" > "$FINAL_HTML_OUTPUT"
+
+echo "Opening visualization in browser: $FINAL_HTML_OUTPUT"
+xdg-open "$FINAL_HTML_OUTPUT" &> /dev/null || open "$FINAL_HTML_OUTPUT" &> /dev/null || start "" "$FINAL_HTML_OUTPUT" &> /dev/null || {
+  echo "--------------------------------------------------"
+  echo "Could not automatically open your web browser."
+  echo "Please open this file manually:"
+  echo "$FINAL_HTML_OUTPUT"
+  echo "--------------------------------------------------"
+  trap - EXIT
+}
+
+sleep 3

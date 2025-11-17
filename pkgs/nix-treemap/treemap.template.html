@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nix Dependency Treemap</title>
+    <!-- D3JS_PLACEHOLDER -->
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        text-align: center;
+        color: #333;
+        margin-top: 0;
+      }
+
+      .dropzone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        margin-bottom: 20px;
+        transition: background-color 0.3s;
+      }
+
+      .dropzone.dragover {
+        background-color: #e9f7fe;
+        border-color: #7cc;
+      }
+
+      .dropzone p {
+        margin: 0;
+        font-size: 18px;
+        color: #666;
+      }
+
+      .file-input {
+        display: none;
+      }
+
+      .select-button {
+        background-color: #4a90e2;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 15px;
+        transition: background-color 0.3s;
+      }
+
+      .select-button:hover {
+        background-color: #3a80d2;
+      }
+
+      #treemap {
+        width: 100%;
+        height: 600px;
+      }
+
+      .tooltip {
+        position: absolute;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 14px;
+        z-index: 10;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      .breadcrumb {
+        margin-bottom: 10px;
+        padding: 8px;
+        background-color: #f8f8f8;
+        border-radius: 4px;
+      }
+
+      .breadcrumb a {
+        color: #4a90e2;
+        text-decoration: none;
+        margin-right: 5px;
+      }
+
+      .breadcrumb a:hover {
+        text-decoration: underline;
+      }
+
+      .breadcrumb span {
+        margin: 0 5px;
+        color: #888;
+      }
+
+      .control-panel {
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .size-indicator {
+        display: flex;
+        align-items: center;
+        margin-left: auto;
+      }
+
+      .size-scale {
+        display: flex;
+        margin-left: 8px;
+      }
+
+      .scale-box {
+        width: 20px;
+        height: 20px;
+        margin-right: 2px;
+      }
+
+      .scale-label {
+        margin-left: 5px;
+        font-size: 14px;
+        color: #666;
+      }
+
+      .node rect {
+        stroke: #fff;
+      }
+
+      .node text {
+        font-size: 10px;
+        font-family: sans-serif;
+        fill: white;
+        pointer-events: none;
+      }
+
+      .node-label {
+        fill: white;
+        pointer-events: none;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Nix Dependency Treemap Visualizer</h1>
+
+      <div id="dropzone" class="dropzone">
+        <p>Drag & drop your Nix dependency JSON file here</p>
+        <p>or</p>
+        <button id="select-button" class="select-button">Select File</button>
+        <input type="file" id="file-input" class="file-input" accept=".json" />
+      </div>
+
+      <div id="visualization" style="display: none">
+        <div class="control-panel">
+          <button id="back-button" class="select-button" style="display: none">
+            Back to Parent
+          </button>
+          <div class="size-indicator">
+            <span>Size:</span>
+            <div class="size-scale">
+              <div class="scale-box" style="background-color: #1f77b4"></div>
+              <div class="scale-box" style="background-color: #2c6fad"></div>
+              <div class="scale-box" style="background-color: #3967a6"></div>
+              <div class="scale-box" style="background-color: #465f9f"></div>
+              <div class="scale-box" style="background-color: #535798"></div>
+            </div>
+            <span class="scale-label">Smaller → Larger</span>
+          </div>
+        </div>
+        <div id="breadcrumb" class="breadcrumb">
+          <a href="#" data-id="root">Root</a>
+        </div>
+        <svg id="treemap"></svg>
+        <div id="tooltip" class="tooltip"></div>
+      </div>
+    </div>
+
+    <script>
+      const embeddedData = null; /* JSON_PLACEHOLDER */
+
+      const dropzone = document.getElementById("dropzone");
+      const fileInput = document.getElementById("file-input");
+      const selectButton = document.getElementById("select-button");
+      const visualization = document.getElementById("visualization");
+      const treemapContainer = document.getElementById("treemap");
+      const tooltip = document.getElementById("tooltip");
+      const breadcrumb = document.getElementById("breadcrumb");
+      const backButton = document.getElementById("back-button");
+
+      let rootData = null;
+      let currentNode = null;
+      let nodePath = [];
+      let uidCounter = 0;
+
+      function generateUid(prefix) {
+        uidCounter++;
+        const id = `${prefix}-${uidCounter}`;
+        return {
+          id,
+          href: `#${id}`,
+        };
+      }
+
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("dragover");
+      });
+
+      dropzone.addEventListener("dragleave", () => {
+        dropzone.classList.remove("dragover");
+      });
+
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+        if (e.dataTransfer.files.length) {
+          handleFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      selectButton.addEventListener("click", () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files.length) {
+          handleFile(e.target.files[0]);
+        }
+      });
+
+      backButton.addEventListener("click", () => {
+        if (nodePath.length > 1) {
+          nodePath.pop();
+          const parentNode = nodePath[nodePath.length - 1];
+          renderTreemap(parentNode);
+          updateBreadcrumb();
+        }
+      });
+
+      function handleFile(file) {
+        if (!file.type.match("application/json")) {
+          alert("Please select a JSON file.");
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const jsonData = JSON.parse(e.target.result);
+            dropzone.style.display = "none";
+            visualization.style.display = "block";
+            processData(jsonData);
+          } catch (error) {
+            alert("Error parsing JSON file: " + error.message);
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function processData(data) {
+        if (!data.children && data.dependencies) {
+          data.children = data.dependencies;
+          delete data.dependencies;
+        }
+
+        function ensureChildren(node) {
+          if (!node.children) {
+            node.children = [];
+          } else {
+            node.children.forEach(ensureChildren);
+          }
+          return node;
+        }
+
+        rootData = ensureChildren(data);
+
+        nodePath = [rootData];
+        currentNode = rootData;
+
+        renderTreemap(rootData);
+      }
+
+      function formatSize(size) {
+        const units = ["B", "KB", "MB", "GB"];
+        let formattedSize = size;
+        let unitIndex = 0;
+
+        while (formattedSize >= 1024 && unitIndex < units.length - 1) {
+          formattedSize /= 1024;
+          unitIndex++;
+        }
+
+        return `${formattedSize.toFixed(2)} ${units[unitIndex]}`;
+      }
+
+      function renderTreemap(node) {
+        currentNode = node;
+
+        backButton.style.display = nodePath.length > 1 ? "block" : "none";
+
+        const width = treemapContainer.parentElement.clientWidth;
+        const height = 600;
+
+        d3.select(treemapContainer).selectAll("*").remove();
+
+        d3.select(treemapContainer)
+          .attr("width", width)
+          .attr("height", height)
+          .attr("viewBox", [0, 0, width, height])
+          .attr(
+            "style",
+            "max-width: 100%; height: auto; overflow: visible; font: 10px sans-serif;",
+          );
+
+        const shadow = generateUid("shadow");
+        const filter = d3
+          .select(treemapContainer)
+          .append("filter")
+          .attr("id", shadow.id);
+
+        filter
+          .append("feDropShadow")
+          .attr("flood-opacity", 0.3)
+          .attr("dx", 0)
+          .attr("stdDeviation", 3);
+
+        const hierarchy = d3
+          .hierarchy(node)
+          .sum((d) => Math.cbrt(d.size))
+          .sort((a, b) => b.value - a.value);
+
+        hierarchy.each((d) => {
+          d.originalSize = d.data.size || 0;
+
+          let totalSize = d.originalSize;
+          if (d.children) {
+            d.children.forEach((child) => {
+              totalSize += sumNodeSizes(child);
+            });
+          }
+          d.totalSize = totalSize;
+        });
+
+        function sumNodeSizes(node) {
+          let total = node.data.size || 0;
+          if (node.children) {
+            node.children.forEach((child) => {
+              total += sumNodeSizes(child);
+            });
+          }
+          return total;
+        }
+
+        const treemap = d3
+          .treemap()
+          .size([width, height])
+          .paddingOuter(3)
+          .paddingTop(19)
+          .paddingInner(1)
+          .round(true);
+
+        const root = treemap(hierarchy);
+
+        const color = d3.scaleSequential([8, 0], d3.interpolateViridis);
+
+        const nodesByHeight = d3.group(root.descendants(), (d) => d.height);
+
+        const heightGroups = d3
+          .select(treemapContainer)
+          .selectAll("g.height-group")
+          .data(nodesByHeight)
+          .join("g")
+          .attr("class", "height-group")
+          .attr("filter", `url(#${shadow.id})`);
+
+        const nodes = heightGroups
+          .selectAll("g.node")
+          .data((d) => d[1])
+          .join("g")
+          .attr("class", "node")
+          .attr("transform", (d) => `translate(${d.x0},${d.y0})`)
+          .on("click", function (event, d) {
+            if (d.children && d.children.length > 0) {
+              nodePath.push(d.data);
+              renderTreemap(d.data);
+              updateBreadcrumb();
+            }
+          })
+          .on("mousemove", function (event, d) {
+            const ownSize = d.originalSize ? formatSize(d.originalSize) : "N/A";
+            const totalSize = d.totalSize ? formatSize(d.totalSize) : "N/A";
+            tooltip.style.left = `${event.pageX + 10}px`;
+            tooltip.style.top = `${event.pageY + 10}px`;
+            tooltip.innerHTML = `${d.data.name}<br>Size: ${ownSize}<br>Total: ${totalSize}`;
+            tooltip.style.opacity = 1;
+          })
+          .on("mouseout", function () {
+            tooltip.style.opacity = 0;
+          });
+
+        nodes
+          .append("rect")
+          .attr("id", (d) => {
+            d.nodeUid = generateUid("node");
+            return d.nodeUid.id;
+          })
+          .attr("fill", (d) => color(d.height))
+          .attr("width", (d) => Math.max(0, d.x1 - d.x0))
+          .attr("height", (d) => Math.max(0, d.y1 - d.y0));
+
+        nodes
+          .append("clipPath")
+          .attr("id", (d) => {
+            d.clipUid = generateUid("clip");
+            return d.clipUid.id;
+          })
+          .append("use")
+          .attr("xlink:href", (d) => d.nodeUid.href);
+
+        const nodeTexts = nodes
+          .append("text")
+          .attr("clip-path", (d) => `url(#${d.clipUid.id})`)
+          .attr("pointer-events", "none");
+
+        nodeTexts
+          .filter((d) => d.children)
+          .selectAll("tspan")
+          .data((d) => {
+            const sizeText = d.originalSize
+              ? formatSize(d.originalSize)
+              : "N/A";
+            return [d.data.name.substring(33, 1000), sizeText];
+          })
+          .join("tspan")
+          .attr("x", 3)
+          .attr("y", (d, i, nodes) => `${13 + i * 10}px`)
+          .attr("fill-opacity", (d, i, nodes) =>
+            i === nodes.length - 1 ? 0.7 : null,
+          )
+          .attr("fill", function (d, i, nodes) {
+            const parentColor = d3
+              .select(this.parentNode.parentNode)
+              .select("rect")
+              .attr("fill");
+            return d3.hsl(parentColor).l < 0.5 ? "white" : "black";
+          })
+          .text((d) => d);
+
+        nodeTexts
+          .filter((d) => !d.children)
+          .selectAll("tspan")
+          .data((d) => {
+            const sizeText = d.originalSize
+              ? formatSize(d.originalSize)
+              : "N/A";
+            return [d.data.name.substring(33, 1000), sizeText];
+          })
+          .join("tspan")
+          .attr("x", 3)
+          .attr(
+            "y",
+            (d, i, nodes) =>
+              `${(i === nodes.length - 1 ? 0.3 : 0) + 1.1 + i * 0.9}em`,
+          )
+          .attr("fill-opacity", (d, i, nodes) =>
+            i === nodes.length - 1 ? 0.7 : null,
+          )
+          .attr("fill", function (d, i, nodes) {
+            const parentColor = d3
+              .select(this.parentNode.parentNode)
+              .select("rect")
+              .attr("fill");
+            return d3.hsl(parentColor).l < 0.5 ? "white" : "black";
+          })
+          .text((d) => d);
+
+        updateBreadcrumb();
+      }
+
+      function updateBreadcrumb() {
+        breadcrumb.innerHTML = "";
+
+        nodePath.forEach((node, index) => {
+          const link = document.createElement("a");
+          link.href = "#";
+          link.textContent = node.name || "Root";
+          link.dataset.index = index;
+
+          link.addEventListener("click", (e) => {
+            e.preventDefault();
+            const clickedIndex = parseInt(e.target.dataset.index);
+            nodePath = nodePath.slice(0, clickedIndex + 1);
+            renderTreemap(nodePath[clickedIndex]);
+            updateBreadcrumb();
+          });
+
+          breadcrumb.appendChild(link);
+
+          if (index < nodePath.length - 1) {
+            const separator = document.createElement("span");
+            separator.textContent = ">";
+            breadcrumb.appendChild(separator);
+          }
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        if (embeddedData) {
+          console.log("Found embedded data, rendering treemap automatically.");
+          dropzone.style.display = "none";
+          visualization.style.display = "block";
+          processData(embeddedData);
+        } else {
+          console.log("No embedded data found, waiting for user input.");
+        }
+      });
+    </script>
+  </body>
+</html>
