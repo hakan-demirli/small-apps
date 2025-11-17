@@ -15,52 +15,44 @@
     }:
     let
       lib = nixpkgs.lib;
+      findPackageDirs = path: lib.filterAttrs (name: type: type == "directory") (builtins.readDir path);
+      allPackageNames = lib.attrNames (findPackageDirs ./pkgs);
 
-      buildMyPackages =
-        pkgs:
-        let
-          findPackageDirs = path: lib.filterAttrs (name: type: type == "directory") (builtins.readDir path);
-        in
-        lib.mapAttrs' (
-          pkgName: _:
-          let
-            packagePath = ./pkgs + "/${pkgName}";
-          in
-          lib.nameValuePair pkgName (pkgs.callPackage "${packagePath}/default.nix" { })
-        ) (findPackageDirs ./pkgs);
+      perSystem =
+        flake-utils.lib.eachSystem
+          (lib.filter (s: !(lib.hasInfix "darwin" s)) flake-utils.lib.defaultSystems)
+          (
+            system:
+            let
+              pkgs = import nixpkgs { inherit system; };
 
-      myPackagesOverlay = final: prev: buildMyPackages final;
+              allMyPackages = lib.genAttrs allPackageNames (
+                name: pkgs.callPackage (./pkgs + "/${name}/default.nix") { }
+              );
 
-      supportedSystems = lib.filter (
-        system: !(lib.hasInfix "darwin" system)
-      ) flake-utils.lib.defaultSystems;
+              enabledPackages = lib.filterAttrs (name: pkg: !(pkg.meta.broken or false)) allMyPackages;
+            in
+            {
+              packages = enabledPackages // {
+                default = pkgs.buildEnv {
+                  name = "small-apps-bundle-${system}";
+                  paths = lib.attrValues enabledPackages;
+                  meta.description = "Build environment containing all enabled small-apps";
+                };
+              };
+            }
+          );
+
     in
-    {
-      overlays.default = myPackagesOverlay;
-    }
-
-    // flake-utils.lib.eachSystem supportedSystems (
-      system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ myPackagesOverlay ];
-        };
-
-        myPackages = buildMyPackages pkgs;
-
-      in
-      {
-        packages = myPackages // {
-          default = pkgs.buildEnv {
-            name = "small-apps-bundle-${system}";
-            paths = lib.attrValues myPackages;
-            meta = {
-              description = "Build environment containing all small-apps";
-            };
-          };
-          ytdlpp = pkgs.yt-dlp;
-        };
-      }
-    );
+    perSystem
+    // {
+      overlays.default =
+        final: prev:
+        let
+          system = prev.system;
+          systemPackages = perSystem.packages.${system} or { };
+          packagesToAdd = lib.filterAttrs (name: _: name != "default") systemPackages;
+        in
+        packagesToAdd;
+    };
 }

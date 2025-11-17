@@ -16,4 +16,6 @@ pkgs.stdenv.mkDerivation {
   installPhase = ''
     install -Dm755 ${./clipboard_tts.py} $out/bin/clipboard_tts;
   '';
+
+  meta.broken = true;
 }
