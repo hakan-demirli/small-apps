@@ -39,6 +39,48 @@ false
     assert "true" in patches[0]["search_block"]
 
 
+def test_continuous_diff_fenced():
+    patch_text = """
+lib/helper.nix
+<<<<<<< SEARCH
+block1
+=======
+replace1
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+block2
+=======
+replace2
+>>>>>>> REPLACE
+"""
+    patches = list(dap.parse_diff_fenced(patch_text))
+    assert len(patches) == 2
+    assert patches[0]["file_path"] == "lib/helper.nix"
+    assert "block1" in patches[0]["search_block"]
+    assert patches[1]["file_path"] == "lib/helper.nix"
+    assert "block2" in patches[1]["search_block"]
+
+
+def test_continuous_source_dest():
+    patch_text = """
+>>>> lib/test.txt
+<<<<
+blockA
+====
+replaceA
+>>>>
+<<<<
+blockB
+====
+replaceB
+>>>>
+"""
+    patches = list(dap.parse_source_dest_blocks(patch_text))
+    assert len(patches) == 2
+    assert patches[0]["file_path"] == "lib/test.txt"
+    assert patches[1]["file_path"] == "lib/test.txt"
+
+
 def test_preflight_checks_fail_file_not_found(capsys):
     patches = [
         {"file_path": "nonexistent.txt", "search_block": "foo", "replace_block": "bar"}

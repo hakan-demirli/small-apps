@@ -28,6 +28,9 @@ def parse_diff_fenced(patch_content):
     =======
     ...
     >>>>>>> REPLACE
+    <<<<<<< SEARCH  (Optional: Continuous block for same file)
+    ...
+    >>>>>>> REPLACE
     """
     lines = patch_content.splitlines(True)
 
@@ -42,8 +45,15 @@ def parse_diff_fenced(patch_content):
 
         if state == "idle":
             if stripped_line == "<<<<<<< SEARCH":
-                file_path = previous_line.strip()
-                if not file_path:
+                # If previous line has content, it is the new file path.
+                # If previous line is empty, we might be in a continuous block for the existing file_path.
+                potential_path = previous_line.strip()
+                
+                if potential_path:
+                    file_path = potential_path
+                elif file_path:
+                    pass  # Continue using existing file_path
+                else:
                     print(
                         "Warning: Found a patch block start marker without a preceding file path. Skipping."
                     )
@@ -55,6 +65,11 @@ def parse_diff_fenced(patch_content):
             else:
                 if stripped_line:
                     previous_line = line
+                else:
+                    # Clear previous line on empty lines to ensure we don't
+                    # accidentally attribute a filename across a large gap
+                    # and to allow detection of "no filename provided".
+                    previous_line = ""
 
         elif state == "in_search":
             if stripped_line == "=======":
@@ -125,7 +140,8 @@ def parse_source_dest_blocks(patch_content):
                     "replace_block": "".join(replace_lines),
                 }
                 state = "idle"
-                file_path = None
+                # We do NOT reset file_path to None here, allowing
+                # subsequent '<<<<' blocks to apply to the same file.
             else:
                 replace_lines.append(line)
 
