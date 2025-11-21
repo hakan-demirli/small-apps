@@ -119,3 +119,79 @@ def test_smart_detection_old():
 def test_smart_detection_new():
     content = ">>>> file\n<<<<\nfoo\n====\nbar\n>>>>"
     assert "<<<<<<< SEARCH" not in content
+
+
+def test_file_creation_logic(tmp_path):
+    new_file = tmp_path / "subdir" / "new.rs"
+
+    patches = [
+        {
+            "file_path": str(new_file),
+            "search_block": "",
+            "replace_block": "fn main() {}",
+        }
+    ]
+
+    success, _ = dap.run_preflight_checks(patches)
+    assert success is True
+
+    dap.apply_patch(patches[0])
+
+    assert new_file.exists()
+    assert new_file.read_text(encoding="utf-8") == "fn main() {}"
+
+
+def test_overwrite_empty_file_logic(tmp_path):
+    empty_file = tmp_path / "empty.txt"
+    empty_file.touch()
+
+    patches = [
+        {
+            "file_path": str(empty_file),
+            "search_block": "",
+            "replace_block": "filled",
+        }
+    ]
+
+    success, _ = dap.run_preflight_checks(patches)
+    assert success is True
+
+    dap.apply_patch(patches[0])
+    assert empty_file.read_text(encoding="utf-8") == "filled"
+
+
+def test_overwrite_whitespace_only_file_logic(tmp_path):
+    # Create a file with just newlines
+    ws_file = tmp_path / "ws.txt"
+    ws_file.write_text("\n   \n\n", encoding="utf-8")
+
+    patches = [
+        {
+            "file_path": str(ws_file),
+            "search_block": "",
+            "replace_block": "filled",
+        }
+    ]
+
+    success, _ = dap.run_preflight_checks(patches)
+    assert success is True
+
+    dap.apply_patch(patches[0])
+    assert ws_file.read_text(encoding="utf-8") == "filled"
+
+
+def test_fail_overwrite_non_empty_file(tmp_path):
+    f = tmp_path / "full.txt"
+    f.write_text("content", encoding="utf-8")
+
+    patches = [
+        {
+            "file_path": str(f),
+            "search_block": "",
+            "replace_block": "new",
+        }
+    ]
+
+    success, errors = dap.run_preflight_checks(patches)
+    assert success is False
+    assert "Search block is empty, but target file is not empty" in errors[0]

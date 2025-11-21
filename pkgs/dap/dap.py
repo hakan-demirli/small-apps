@@ -45,14 +45,12 @@ def parse_diff_fenced(patch_content):
 
         if state == "idle":
             if stripped_line == "<<<<<<< SEARCH":
-                # If previous line has content, it is the new file path.
-                # If previous line is empty, we might be in a continuous block for the existing file_path.
                 potential_path = previous_line.strip()
 
                 if potential_path:
                     file_path = potential_path
                 elif file_path:
-                    pass  # Continue using existing file_path
+                    pass
                 else:
                     print(
                         "Warning: Found a patch block start marker without a preceding file path. Skipping."
@@ -63,9 +61,6 @@ def parse_diff_fenced(patch_content):
                 search_lines = []
                 replace_lines = []
             else:
-                # Clear previous line on empty lines to ensure we don't
-                # accidentally attribute a filename across a large gap
-                # and to allow detection of "no filename provided".
                 previous_line = line if stripped_line else ""
         elif state == "in_search":
             if stripped_line == "=======":
@@ -136,8 +131,6 @@ def parse_source_dest_blocks(patch_content):
                     "replace_block": "".join(replace_lines),
                 }
                 state = "idle"
-                # We do NOT reset file_path to None here, allowing
-                # subsequent '<<<<' blocks to apply to the same file.
             else:
                 replace_lines.append(line)
 
@@ -146,6 +139,7 @@ def run_preflight_checks(patches):
     """
     Checks all patches before applying them.
     Ensures target files exist and search blocks are found uniquely.
+    Also validates file creation/overwrite scenarios where search block is empty.
     Returns True if all checks pass, False otherwise, along with a list of errors.
     """
     print("--- Running Preflight Checks ---")
@@ -156,6 +150,28 @@ def run_preflight_checks(patches):
         search_block = patch["search_block"]
         check_prefix = f"  - Patch #{i + 1} for '{file_path}':"
 
+        if not search_block.strip():
+            if not os.path.exists(file_path):
+                print(f"{check_prefix} OK (New File Creation)")
+                continue
+
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    content = f.read()
+                if not content.strip():
+                    print(f"{check_prefix} OK (Overwrite Empty File)")
+                    continue
+                else:
+                    errors.append(
+                        f"{check_prefix} FAILED (Search block is empty, but target file is not empty)"
+                    )
+                    continue
+            except Exception as e:
+                errors.append(
+                    f"{check_prefix} FAILED (Could not read existing file: {e})"
+                )
+                continue
+
         if not os.path.exists(file_path):
             errors.append(f"{check_prefix} FAILED (File not found)")
             continue
@@ -165,10 +181,6 @@ def run_preflight_checks(patches):
                 content = f.read()
         except Exception as e:
             errors.append(f"{check_prefix} FAILED (Could not read file: {e})")
-            continue
-
-        if not search_block.strip():
-            errors.append(f"{check_prefix} FAILED (Search block is empty)")
             continue
 
         search_pattern = create_indent_agnostic_regex(search_block)
@@ -194,6 +206,7 @@ def apply_patch(patch, dry_run=False):
     """
     Applies a single parsed patch to the target file.
     Assumes preflight checks have already passed.
+    Handles both replacement and file creation.
     """
     file_path = patch["file_path"]
     search_block = patch["search_block"]
@@ -201,8 +214,34 @@ def apply_patch(patch, dry_run=False):
 
     print(f"--- Applying patch to: {file_path}")
 
-    with open(file_path, encoding="utf-8") as f:
-        original_content = f.read()
+    if not search_block.strip():
+        if dry_run:
+            print("    [DRY RUN] File would be created/overwritten.")
+            print("    --- CHANGES PREVIEW ---")
+            print("    (New File Content)")
+            print(f"    + {replace_block.strip()}")
+            print("    -----------------------")
+            return True
+
+        try:
+            parent_dir = os.path.dirname(file_path)
+            if parent_dir and not os.path.exists(parent_dir):
+                os.makedirs(parent_dir, exist_ok=True)
+
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(replace_block)
+            print("    [SUCCESS] File created/overwritten.")
+            return True
+        except Exception as e:
+            print(f"    [ERROR] Could not create/write file: {e}")
+            return False
+
+    try:
+        with open(file_path, encoding="utf-8") as f:
+            original_content = f.read()
+    except FileNotFoundError:
+        print("    [ERROR] File not found during application.")
+        return False
 
     search_pattern = create_indent_agnostic_regex(search_block)
     new_content, num_replacements = search_pattern.subn(
