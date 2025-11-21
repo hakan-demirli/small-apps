@@ -48,7 +48,7 @@ def parse_diff_fenced(patch_content):
                 # If previous line has content, it is the new file path.
                 # If previous line is empty, we might be in a continuous block for the existing file_path.
                 potential_path = previous_line.strip()
-                
+
                 if potential_path:
                     file_path = potential_path
                 elif file_path:
@@ -63,14 +63,10 @@ def parse_diff_fenced(patch_content):
                 search_lines = []
                 replace_lines = []
             else:
-                if stripped_line:
-                    previous_line = line
-                else:
-                    # Clear previous line on empty lines to ensure we don't
-                    # accidentally attribute a filename across a large gap
-                    # and to allow detection of "no filename provided".
-                    previous_line = ""
-
+                # Clear previous line on empty lines to ensure we don't
+                # accidentally attribute a filename across a large gap
+                # and to allow detection of "no filename provided".
+                previous_line = line if stripped_line else ""
         elif state == "in_search":
             if stripped_line == "=======":
                 state = "in_replace"
