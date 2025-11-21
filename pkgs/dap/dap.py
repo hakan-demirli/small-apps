@@ -21,8 +21,13 @@ def create_indent_agnostic_regex(block_string):
 
 def parse_diff_fenced(patch_content):
     """
-    Parses a string for diff-fenced blocks without relying on code fences (```).
-    It uses the <<< SEARCH marker as the anchor and the preceding line as the file path.
+    Parses the "SEARCH/REPLACE" format:
+    file_path
+    <<<<<<< SEARCH
+    ...
+    =======
+    ...
+    >>>>>>> REPLACE
     """
     lines = patch_content.splitlines(True)
 
@@ -66,6 +71,61 @@ def parse_diff_fenced(patch_content):
                 }
                 state = "idle"
                 previous_line = ""
+            else:
+                replace_lines.append(line)
+
+
+def parse_source_dest_blocks(patch_content):
+    """
+    Parses the "git merge" format:
+    >>>> file_path
+    <<<<
+    search_content
+    ====
+    replace_content
+    >>>>
+    """
+    lines = patch_content.splitlines(True)
+
+    state = "idle"
+    file_path = None
+    search_lines = []
+    replace_lines = []
+
+    for line in lines:
+        stripped_line = line.strip()
+
+        if state == "idle":
+            if stripped_line.startswith(">>>> ") and not stripped_line.startswith(
+                ">>>>>>>"
+            ):
+                file_path = stripped_line[5:].strip()
+
+            elif stripped_line == "<<<<":
+                if not file_path:
+                    print(
+                        "Warning: Found block start '<<<<' without a preceding '>>>> file_path' marker. Skipping."
+                    )
+                    continue
+                state = "in_search"
+                search_lines = []
+                replace_lines = []
+
+        elif state == "in_search":
+            if stripped_line == "====":
+                state = "in_replace"
+            else:
+                search_lines.append(line)
+
+        elif state == "in_replace":
+            if stripped_line == ">>>>":
+                yield {
+                    "file_path": file_path,
+                    "search_block": "".join(search_lines),
+                    "replace_block": "".join(replace_lines),
+                }
+                state = "idle"
+                file_path = None
             else:
                 replace_lines.append(line)
 
@@ -163,7 +223,7 @@ def apply_patch(patch, dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Apply custom patches in diff-fenced format with preflight checks."
+        description="Apply custom patches (Search/Replace or Git-Merge format) with preflight checks."
     )
 
     parser.add_argument(
@@ -199,10 +259,17 @@ def main():
             sys.exit(1)
         patch_content = sys.stdin.read()
 
-    patches = list(parse_diff_fenced(patch_content))
+    if "<<<<<<< SEARCH" in patch_content:
+        print("Detected format: SEARCH/REPLACE block")
+        patches = list(parse_diff_fenced(patch_content))
+    else:
+        print(
+            "Detected format: Source/Dest block (>>>> file <<<< search ==== replace >>>>)"
+        )
+        patches = list(parse_source_dest_blocks(patch_content))
 
     if not patches:
-        print("No valid diff-fenced blocks found in the input.")
+        print("No valid patch blocks found in the input.")
         sys.exit(0)
 
     preflight_ok, errors = run_preflight_checks(patches)
