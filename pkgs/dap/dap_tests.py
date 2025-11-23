@@ -81,6 +81,25 @@ replaceB
     assert patches[1]["file_path"] == "lib/test.txt"
 
 
+def test_arrow_blocks_format():
+    patch_text = """
+<<<< src/main.rs
+fn main() {
+    old
+}
+====
+fn main() {
+    new
+}
+>>>>
+"""
+    patches = list(dap.parse_arrow_blocks(patch_text))
+    assert len(patches) == 1
+    assert patches[0]["file_path"] == "src/main.rs"
+    assert "old" in patches[0]["search_block"]
+    assert "new" in patches[0]["replace_block"]
+
+
 def test_preflight_checks_fail_file_not_found(capsys):
     patches = [
         {"file_path": "nonexistent.txt", "search_block": "foo", "replace_block": "bar"}
