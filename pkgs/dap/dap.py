@@ -14,7 +14,7 @@ def create_indent_agnostic_regex(block_string):
 
     lines = block_string.splitlines()
     escaped_lines = [re.escape(line.strip()) for line in lines]
-    regex_pattern = r"\s*" + r"\s*\n\s*".join(escaped_lines) + r"\s*"
+    regex_pattern = r"[ \t]*" + r"\s*\n\s*".join(escaped_lines) + r"\s*"
 
     return re.compile(regex_pattern)
 
