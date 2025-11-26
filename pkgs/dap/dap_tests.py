@@ -1,12 +1,19 @@
 import dap
 
 
-def test_regex_indent_agnostic():
-    block = "def foo():\n    return True"
-    regex = dap.create_indent_agnostic_regex(block)
+def test_find_occurrences_strategies():
+    src = ["a", "  b", "c"]
+    assert dap.find_occurrences(src, "  b") == ([1], 1)
 
-    target = "    def foo():\n        return True"
-    assert regex.search(target) is not None
+    assert dap.find_occurrences(src, "\n  b\n") == ([1], 1)
+
+    src_indented = ["    x", "    y", "    z"]
+    block_flat = "x\ny\nz"
+    assert dap.find_occurrences(src_indented, block_flat) == ([0], 3)
+
+    src_mixed = ["  start", "    middle", "  end"]
+    block_mixed = "start\nmiddle\nend"
+    assert dap.find_occurrences(src_mixed, block_mixed) == ([0], 3)
 
 
 def test_parse_old_format():

@@ -5,20 +5,6 @@ import re
 import sys
 
 
-def create_indent_agnostic_regex(block_string):
-    """
-    Converts a multi-line string into a regex pattern that ignores
-    leading whitespace on each line.
-    """
-    block_string = block_string.strip("\n\r")
-
-    lines = block_string.splitlines()
-    escaped_lines = [re.escape(line.strip()) for line in lines]
-    regex_pattern = r"[ \t]*" + r"\s*\n\s*".join(escaped_lines) + r"\s*"
-
-    return re.compile(regex_pattern)
-
-
 def parse_diff_fenced(patch_content):
     """
     Parses the "SEARCH/REPLACE" format:
@@ -26,9 +12,6 @@ def parse_diff_fenced(patch_content):
     <<<<<<< SEARCH
     ...
     =======
-    ...
-    >>>>>>> REPLACE
-    <<<<<<< SEARCH  (Optional: Continuous block for same file)
     ...
     >>>>>>> REPLACE
     """
@@ -52,10 +35,7 @@ def parse_diff_fenced(patch_content):
                 elif file_path:
                     pass
                 else:
-                    print(
-                        "Warning: Found a patch block start marker without a preceding file path. Skipping."
-                    )
-                    continue
+                    pass
 
                 state = "in_search"
                 search_lines = []
@@ -129,7 +109,7 @@ def parse_arrow_blocks(patch_content):
 
 def parse_source_dest_blocks(patch_content):
     """
-    Parses the "git merge" format:
+    Parses the format:
     >>>> file_path
     <<<<
     search_content
@@ -155,9 +135,6 @@ def parse_source_dest_blocks(patch_content):
 
             elif stripped_line == "<<<<":
                 if not file_path:
-                    print(
-                        "Warning: Found block start '<<<<' without a preceding '>>>> file_path' marker. Skipping."
-                    )
                     continue
                 state = "in_search"
                 search_lines = []
@@ -181,12 +158,69 @@ def parse_source_dest_blocks(patch_content):
                 replace_lines.append(line)
 
 
+def find_occurrences(source_lines, search_block_str):
+    """
+    Finds where the lines in search_block_str occur in source_lines.
+
+    Hierarchy of search:
+    1. Strict Match: Exact content and indentation.
+    2. Strict Match (Trimmed): Exact content/indentation after removing leading/trailing
+       empty lines from the search block (handles copy-paste artifacts).
+    3. Loose Match: Ignores indentation (whitespace) on both source and search lines.
+
+    Returns:
+        (matches, length_of_match_in_lines)
+        matches: list of start indices (0-based)
+        length_of_match_in_lines: number of lines in the source that matched
+    """
+
+    src_strict = [line.rstrip("\n\r") for line in source_lines]
+
+    search_lines_strict = search_block_str.splitlines()
+    matches = _find_sublist(src_strict, search_lines_strict)
+    if matches:
+        return matches, len(search_lines_strict)
+
+    search_block_stripped = search_block_str.strip("\n\r")
+    if search_block_stripped != search_block_str:
+        search_lines_trimmed = search_block_stripped.splitlines()
+        if search_lines_trimmed:
+            matches = _find_sublist(src_strict, search_lines_trimmed)
+            if matches:
+                return matches, len(search_lines_trimmed)
+
+    src_loose = [line.strip() for line in source_lines]
+    if "search_lines_trimmed" not in locals():
+        search_lines_trimmed = search_block_str.strip("\n\r").splitlines()
+
+    search_lines_loose = [line.strip() for line in search_lines_trimmed]
+
+    if not search_lines_loose:
+        return [], 0
+
+    matches = _find_sublist(src_loose, search_lines_loose)
+    return matches, len(search_lines_trimmed)
+
+
+def _find_sublist(full_list, sub_list):
+    """Helper to find all occurrences of sub_list in full_list."""
+    matches = []
+    n = len(full_list)
+    m = len(sub_list)
+    if m == 0:
+        return []
+
+    for i in range(n - m + 1):
+        if full_list[i : i + m] == sub_list:
+            matches.append(i)
+    return matches
+
+
 def run_preflight_checks(patches):
     """
     Checks all patches before applying them.
     Ensures target files exist and search blocks are found uniquely.
-    Also validates file creation/overwrite scenarios where search block is empty.
-    Returns True if all checks pass, False otherwise, along with a list of errors.
+    Returns True if all checks pass, False otherwise.
     """
     print("--- Running Preflight Checks ---")
     errors = []
@@ -224,13 +258,12 @@ def run_preflight_checks(patches):
 
         try:
             with open(file_path, encoding="utf-8") as f:
-                content = f.read()
+                source_lines = f.readlines()
         except Exception as e:
             errors.append(f"{check_prefix} FAILED (Could not read file: {e})")
             continue
 
-        search_pattern = create_indent_agnostic_regex(search_block)
-        matches = re.findall(search_pattern, content)
+        matches, _ = find_occurrences(source_lines, search_block)
         count = len(matches)
 
         if count == 0:
@@ -252,7 +285,6 @@ def apply_patch(patch, dry_run=False):
     """
     Applies a single parsed patch to the target file.
     Assumes preflight checks have already passed.
-    Handles both replacement and file creation.
     """
     file_path = patch["file_path"]
     search_block = patch["search_block"]
@@ -263,10 +295,6 @@ def apply_patch(patch, dry_run=False):
     if not search_block.strip():
         if dry_run:
             print("    [DRY RUN] File would be created/overwritten.")
-            print("    --- CHANGES PREVIEW ---")
-            print("    (New File Content)")
-            print(f"    + {replace_block.strip()}")
-            print("    -----------------------")
             return True
 
         try:
@@ -284,33 +312,32 @@ def apply_patch(patch, dry_run=False):
 
     try:
         with open(file_path, encoding="utf-8") as f:
-            original_content = f.read()
+            source_lines = f.readlines()
     except FileNotFoundError:
         print("    [ERROR] File not found during application.")
         return False
 
-    search_pattern = create_indent_agnostic_regex(search_block)
-    new_content, num_replacements = search_pattern.subn(
-        lambda _: replace_block, original_content, count=1
-    )
+    matches, match_len = find_occurrences(source_lines, search_block)
 
-    if num_replacements != 1:
+    if len(matches) != 1:
         print(
-            f"    [ERROR] Expected 1 replacement, but {num_replacements} occurred. Aborting this patch."
+            f"    [ERROR] Expected 1 replacement, but {len(matches)} occurred. Aborting."
         )
         return False
 
+    start_idx = matches[0]
+    end_idx = start_idx + match_len
+
     if dry_run:
         print("    [DRY RUN] Patch would be applied successfully.")
-        print("    --- CHANGES PREVIEW ---")
-        print(f"    - {search_block.strip()}")
-        print(f"    + {replace_block.strip()}")
-        print("    -----------------------")
         return True
+
+    replace_lines = replace_block.splitlines(True)
+    source_lines[start_idx:end_idx] = replace_lines
 
     try:
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(new_content)
+            f.writelines(source_lines)
         print("    [SUCCESS] Patch applied.")
         return True
     except Exception as e:
@@ -320,7 +347,7 @@ def apply_patch(patch, dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Apply custom patches (Search/Replace or Git-Merge format) with preflight checks."
+        description="Apply custom patches (Search/Replace or Git-Merge format) using line-based matching."
     )
 
     parser.add_argument(
