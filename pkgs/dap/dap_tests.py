@@ -61,6 +61,19 @@ mathweb/init.py <<<<<<< DELETE
     assert patches[1]["delete_file"] is True
 
 
+def test_parse_move_format():
+    patch_text = """
+mathweb/init.py <<<<<<< MOVE >>>>>>> mathweb/webapi/__init__.py
+mathweb/hi.cpp <<<<<<< MOVE >>>>>>> hi.cpp
+"""
+    patches = list(dap.parse_move_commands(patch_text))
+    assert len(patches) == 2
+    assert patches[0]["file_path"] == "mathweb/init.py"
+    assert patches[0]["move_destination"] == "mathweb/webapi/__init__.py"
+    assert patches[1]["file_path"] == "mathweb/hi.cpp"
+    assert patches[1]["move_destination"] == "hi.cpp"
+
+
 def test_continuous_diff_fenced():
     patch_text = """
 lib/helper.nix
@@ -148,6 +161,40 @@ def test_preflight_checks_fail_delete_not_found(capsys):
     assert "File not found, cannot delete" in errors[0]
 
 
+def test_preflight_checks_fail_move_source_missing(capsys):
+    patches = [
+        {
+            "file_path": "nonexistent.txt",
+            "move_destination": "dest.txt",
+            "search_block": "",
+            "replace_block": "",
+        }
+    ]
+    success, errors = dap.run_preflight_checks(patches)
+    assert success is False
+    assert "Source file not found" in errors[0]
+
+
+def test_preflight_checks_fail_move_dest_exists(tmp_path):
+    src = tmp_path / "src.txt"
+    src.touch()
+    dst = tmp_path / "dst.txt"
+    dst.touch()
+
+    patches = [
+        {
+            "file_path": str(src),
+            "move_destination": str(dst),
+            "search_block": "",
+            "replace_block": "",
+        }
+    ]
+    success, errors = dap.run_preflight_checks(patches)
+    assert success is False
+    assert "Destination file" in errors[0]
+    assert "already exists" in errors[0]
+
+
 def test_apply_patch_success(tmp_path, capsys):
     f = tmp_path / "code.py"
     f.write_text("def hello():\n    print('Hi')", encoding="utf-8")
@@ -185,6 +232,30 @@ def test_apply_delete_success(tmp_path):
     assert not f.exists()
 
 
+def test_apply_move_success(tmp_path):
+    src = tmp_path / "old.py"
+    src.write_text("import os", encoding="utf-8")
+    dst = tmp_path / "subdir" / "new.py"
+
+    patches = [
+        {
+            "file_path": str(src),
+            "move_destination": str(dst),
+            "search_block": "",
+            "replace_block": "",
+        }
+    ]
+
+    assert src.exists()
+    assert not dst.exists()
+
+    dap.apply_patch(patches[0])
+
+    assert not src.exists()
+    assert dst.exists()
+    assert dst.read_text(encoding="utf-8") == "import os"
+
+
 def test_smart_detection_old():
     content = "file\n<<<<<<< SEARCH\nfoo\n=======\nbar\n>>>>>>> REPLACE"
     assert "<<<<<<< SEARCH" in content
@@ -198,6 +269,11 @@ def test_smart_detection_new():
 def test_smart_detection_delete():
     content = "file.py <<<<<<< DELETE"
     assert " <<<<<<< DELETE" in content
+
+
+def test_smart_detection_move():
+    content = "src.py <<<<<<< MOVE >>>>>>> dst.py"
+    assert "<<<<<<< MOVE >>>>>>>" in content
 
 
 def test_file_creation_logic(tmp_path):

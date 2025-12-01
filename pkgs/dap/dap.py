@@ -2,6 +2,7 @@
 import argparse
 import os
 import re
+import shutil
 import sys
 
 
@@ -183,6 +184,30 @@ def parse_delete_commands(patch_content):
                     }
 
 
+def parse_move_commands(patch_content):
+    """
+    Parses the format:
+    old_path <<<<<<< MOVE >>>>>>> new_path
+    """
+    lines = patch_content.splitlines()
+    marker = "<<<<<<< MOVE >>>>>>>"
+    for line in lines:
+        line = line.strip()
+        if marker in line:
+            parts = line.split(marker)
+            if len(parts) == 2:
+                src = parts[0].strip()
+                dst = parts[1].strip()
+                if src and dst:
+                    yield {
+                        "file_path": src,
+                        "move_destination": dst,
+                        "search_block": "",
+                        "replace_block": "",
+                        "delete_file": False,
+                    }
+
+
 def find_occurrences(source_lines, search_block_str):
     """
     Finds where the lines in search_block_str occur in source_lines.
@@ -254,7 +279,20 @@ def run_preflight_checks(patches):
         file_path = patch["file_path"]
         search_block = patch["search_block"]
         delete_file = patch.get("delete_file", False)
+        move_dest = patch.get("move_destination", None)
+
         check_prefix = f"  - Patch #{i + 1} for '{file_path}':"
+
+        if move_dest:
+            if not os.path.exists(file_path):
+                errors.append(f"{check_prefix} FAILED (Source file not found)")
+            elif os.path.exists(move_dest):
+                errors.append(
+                    f"{check_prefix} FAILED (Destination file '{move_dest}' already exists)"
+                )
+            else:
+                print(f"{check_prefix} OK (Move to '{move_dest}')")
+            continue
 
         if delete_file:
             if os.path.exists(file_path):
@@ -323,8 +361,25 @@ def apply_patch(patch, dry_run=False):
     search_block = patch["search_block"]
     replace_block = patch["replace_block"]
     delete_file = patch.get("delete_file", False)
+    move_dest = patch.get("move_destination", None)
 
     print(f"--- Applying patch to: {file_path}")
+
+    if move_dest:
+        if dry_run:
+            print(f"    [DRY RUN] File would be moved to {move_dest}.")
+            return True
+        try:
+            parent_dir = os.path.dirname(move_dest)
+            if parent_dir and not os.path.exists(parent_dir):
+                os.makedirs(parent_dir, exist_ok=True)
+
+            shutil.move(file_path, move_dest)
+            print(f"    [SUCCESS] File moved to {move_dest}.")
+            return True
+        except Exception as e:
+            print(f"    [ERROR] Could not move file: {e}")
+            return False
 
     if delete_file:
         if dry_run:
@@ -393,7 +448,7 @@ def apply_patch(patch, dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Apply custom patches (Search/Replace, Git-Merge, or Delete format) using line-based matching."
+        description="Apply custom patches (Search/Replace, Git-Merge, Move, or Delete format) using line-based matching."
     )
 
     parser.add_argument(
@@ -432,6 +487,9 @@ def main():
     if "<<<<<<< SEARCH" in patch_content:
         print("Detected format: SEARCH/REPLACE block")
         patches = list(parse_diff_fenced(patch_content))
+    elif "<<<<<<< MOVE >>>>>>>" in patch_content:
+        print("Detected format: MOVE commands")
+        patches = list(parse_move_commands(patch_content))
     elif " <<<<<<< DELETE" in patch_content:
         print("Detected format: DELETE commands")
         patches = list(parse_delete_commands(patch_content))
