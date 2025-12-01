@@ -54,6 +54,7 @@ def parse_diff_fenced(patch_content):
                     "file_path": file_path.strip(),
                     "search_block": "".join(search_lines),
                     "replace_block": "".join(replace_lines),
+                    "delete_file": False,
                 }
                 state = "idle"
                 previous_line = ""
@@ -101,6 +102,7 @@ def parse_arrow_blocks(patch_content):
                     "file_path": file_path,
                     "search_block": "".join(search_lines),
                     "replace_block": "".join(replace_lines),
+                    "delete_file": False,
                 }
                 state = "idle"
             else:
@@ -152,10 +154,33 @@ def parse_source_dest_blocks(patch_content):
                     "file_path": file_path,
                     "search_block": "".join(search_lines),
                     "replace_block": "".join(replace_lines),
+                    "delete_file": False,
                 }
                 state = "idle"
             else:
                 replace_lines.append(line)
+
+
+def parse_delete_commands(patch_content):
+    """
+    Parses the format:
+    path/to/file <<<<<<< DELETE
+    """
+    lines = patch_content.splitlines()
+    for line in lines:
+        line = line.strip()
+        if line.endswith("<<<<<<< DELETE"):
+            # Extract the file path (everything before the marker)
+            parts = line.split("<<<<<<< DELETE")
+            if len(parts) > 0:
+                file_path = parts[0].strip()
+                if file_path:
+                    yield {
+                        "file_path": file_path,
+                        "search_block": "",
+                        "replace_block": "",
+                        "delete_file": True,
+                    }
 
 
 def find_occurrences(source_lines, search_block_str):
@@ -228,7 +253,15 @@ def run_preflight_checks(patches):
     for i, patch in enumerate(patches):
         file_path = patch["file_path"]
         search_block = patch["search_block"]
+        delete_file = patch.get("delete_file", False)
         check_prefix = f"  - Patch #{i + 1} for '{file_path}':"
+
+        if delete_file:
+            if os.path.exists(file_path):
+                print(f"{check_prefix} OK (File scheduled for deletion)")
+            else:
+                errors.append(f"{check_prefix} FAILED (File not found, cannot delete)")
+            continue
 
         if not search_block.strip():
             if not os.path.exists(file_path):
@@ -289,8 +322,21 @@ def apply_patch(patch, dry_run=False):
     file_path = patch["file_path"]
     search_block = patch["search_block"]
     replace_block = patch["replace_block"]
+    delete_file = patch.get("delete_file", False)
 
     print(f"--- Applying patch to: {file_path}")
+
+    if delete_file:
+        if dry_run:
+            print("    [DRY RUN] File would be deleted.")
+            return True
+        try:
+            os.remove(file_path)
+            print("    [SUCCESS] File deleted.")
+            return True
+        except Exception as e:
+            print(f"    [ERROR] Could not delete file: {e}")
+            return False
 
     if not search_block.strip():
         if dry_run:
@@ -347,7 +393,7 @@ def apply_patch(patch, dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Apply custom patches (Search/Replace or Git-Merge format) using line-based matching."
+        description="Apply custom patches (Search/Replace, Git-Merge, or Delete format) using line-based matching."
     )
 
     parser.add_argument(
@@ -382,9 +428,13 @@ def main():
             parser.print_usage(file=sys.stderr)
             sys.exit(1)
         patch_content = sys.stdin.read()
+
     if "<<<<<<< SEARCH" in patch_content:
         print("Detected format: SEARCH/REPLACE block")
         patches = list(parse_diff_fenced(patch_content))
+    elif " <<<<<<< DELETE" in patch_content:
+        print("Detected format: DELETE commands")
+        patches = list(parse_delete_commands(patch_content))
     elif re.search(r"^>>>> ", patch_content, re.MULTILINE):
         print(
             "Detected format: Source/Dest block (>>>> file <<<< search ==== replace >>>>)"

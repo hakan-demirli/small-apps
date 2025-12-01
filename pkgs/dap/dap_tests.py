@@ -29,6 +29,7 @@ new
     assert len(patches) == 1
     assert patches[0]["file_path"] == "src/main.rs"
     assert "old" in patches[0]["search_block"]
+    assert patches[0]["delete_file"] is False
 
 
 def test_parse_new_format():
@@ -44,6 +45,20 @@ false
     assert len(patches) == 1
     assert patches[0]["file_path"] == "src/lib.rs"
     assert "true" in patches[0]["search_block"]
+    assert patches[0]["delete_file"] is False
+
+
+def test_parse_delete_format():
+    patch_text = """
+mathweb/flask/oldapp.py <<<<<<< DELETE
+mathweb/init.py <<<<<<< DELETE
+"""
+    patches = list(dap.parse_delete_commands(patch_text))
+    assert len(patches) == 2
+    assert patches[0]["file_path"] == "mathweb/flask/oldapp.py"
+    assert patches[0]["delete_file"] is True
+    assert patches[1]["file_path"] == "mathweb/init.py"
+    assert patches[1]["delete_file"] is True
 
 
 def test_continuous_diff_fenced():
@@ -105,6 +120,7 @@ fn main() {
     assert patches[0]["file_path"] == "src/main.rs"
     assert "old" in patches[0]["search_block"]
     assert "new" in patches[0]["replace_block"]
+    assert patches[0]["delete_file"] is False
 
 
 def test_preflight_checks_fail_file_not_found(capsys):
@@ -116,6 +132,20 @@ def test_preflight_checks_fail_file_not_found(capsys):
 
     assert success is False
     assert "File not found" in errors[0]
+
+
+def test_preflight_checks_fail_delete_not_found(capsys):
+    patches = [
+        {
+            "file_path": "nonexistent.txt",
+            "search_block": "",
+            "replace_block": "",
+            "delete_file": True,
+        }
+    ]
+    success, errors = dap.run_preflight_checks(patches)
+    assert success is False
+    assert "File not found, cannot delete" in errors[0]
 
 
 def test_apply_patch_success(tmp_path, capsys):
@@ -137,6 +167,24 @@ def test_apply_patch_success(tmp_path, capsys):
     assert "Hi" not in content
 
 
+def test_apply_delete_success(tmp_path):
+    f = tmp_path / "trash.py"
+    f.write_text("content", encoding="utf-8")
+
+    patches = [
+        {
+            "file_path": str(f),
+            "search_block": "",
+            "replace_block": "",
+            "delete_file": True,
+        }
+    ]
+
+    assert f.exists()
+    dap.apply_patch(patches[0])
+    assert not f.exists()
+
+
 def test_smart_detection_old():
     content = "file\n<<<<<<< SEARCH\nfoo\n=======\nbar\n>>>>>>> REPLACE"
     assert "<<<<<<< SEARCH" in content
@@ -145,6 +193,11 @@ def test_smart_detection_old():
 def test_smart_detection_new():
     content = ">>>> file\n<<<<\nfoo\n====\nbar\n>>>>"
     assert "<<<<<<< SEARCH" not in content
+
+
+def test_smart_detection_delete():
+    content = "file.py <<<<<<< DELETE"
+    assert " <<<<<<< DELETE" in content
 
 
 def test_file_creation_logic(tmp_path):
