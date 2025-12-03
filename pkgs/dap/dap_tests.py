@@ -53,7 +53,7 @@ def test_parse_delete_format():
 mathweb/flask/oldapp.py <<<<<<< DELETE
 mathweb/init.py <<<<<<< DELETE
 """
-    patches = list(dap.parse_delete_commands(patch_text))
+    patches = list(dap.parse_raw_line_commands(patch_text))
     assert len(patches) == 2
     assert patches[0]["file_path"] == "mathweb/flask/oldapp.py"
     assert patches[0]["delete_file"] is True
@@ -66,7 +66,7 @@ def test_parse_move_format():
 mathweb/init.py <<<<<<< MOVE >>>>>>> mathweb/webapi/__init__.py
 mathweb/hi.cpp <<<<<<< MOVE >>>>>>> hi.cpp
 """
-    patches = list(dap.parse_move_commands(patch_text))
+    patches = list(dap.parse_raw_line_commands(patch_text))
     assert len(patches) == 2
     assert patches[0]["file_path"] == "mathweb/init.py"
     assert patches[0]["move_destination"] == "mathweb/webapi/__init__.py"
@@ -74,66 +74,73 @@ mathweb/hi.cpp <<<<<<< MOVE >>>>>>> hi.cpp
     assert patches[1]["move_destination"] == "hi.cpp"
 
 
-def test_continuous_diff_fenced():
+def test_mixed_diff_fenced_and_commands():
     patch_text = """
-lib/helper.nix
+tests/src/lib.rs
 <<<<<<< SEARCH
-block1
+old
 =======
-replace1
+new
 >>>>>>> REPLACE
+
+tests/src/main.rs <<<<<<< DELETE
+
+tests/tests/integration.rs
 <<<<<<< SEARCH
-block2
+foo
 =======
-replace2
+bar
 >>>>>>> REPLACE
+
+run.sh <<<<<<< DELETE
 """
     patches = list(dap.parse_diff_fenced(patch_text))
-    assert len(patches) == 2
-    assert patches[0]["file_path"] == "lib/helper.nix"
-    assert "block1" in patches[0]["search_block"]
-    assert patches[1]["file_path"] == "lib/helper.nix"
-    assert "block2" in patches[1]["search_block"]
+    assert len(patches) == 4
+
+    assert patches[0]["file_path"] == "tests/src/lib.rs"
+    assert not patches[0]["delete_file"]
+
+    assert patches[1]["file_path"] == "tests/src/main.rs"
+    assert patches[1]["delete_file"]
+
+    assert patches[2]["file_path"] == "tests/tests/integration.rs"
+    assert not patches[2]["delete_file"]
+
+    assert patches[3]["file_path"] == "run.sh"
+    assert patches[3]["delete_file"]
 
 
-def test_continuous_source_dest():
+def test_arrow_blocks_mixed_with_commands():
     patch_text = """
->>>> lib/test.txt
-<<<<
-blockA
+<<<< file1.rs
+search1
 ====
-replaceA
+replace1
 >>>>
+file2.rs <<<<<<< DELETE
+"""
+    patches = list(dap.parse_arrow_blocks(patch_text))
+    assert len(patches) == 2
+    assert patches[0]["file_path"] == "file1.rs"
+    assert patches[1]["file_path"] == "file2.rs"
+    assert patches[1]["delete_file"]
+
+
+def test_source_dest_mixed_with_commands():
+    patch_text = """
+>>>> file1.rs
 <<<<
-blockB
+search1
 ====
-replaceB
+replace1
 >>>>
+file2.rs <<<<<<< DELETE
 """
     patches = list(dap.parse_source_dest_blocks(patch_text))
     assert len(patches) == 2
-    assert patches[0]["file_path"] == "lib/test.txt"
-    assert patches[1]["file_path"] == "lib/test.txt"
-
-
-def test_arrow_blocks_format():
-    patch_text = """
-<<<< src/main.rs
-fn main() {
-    old
-}
-====
-fn main() {
-    new
-}
->>>>
-"""
-    patches = list(dap.parse_arrow_blocks(patch_text))
-    assert len(patches) == 1
-    assert patches[0]["file_path"] == "src/main.rs"
-    assert "old" in patches[0]["search_block"]
-    assert "new" in patches[0]["replace_block"]
-    assert patches[0]["delete_file"] is False
+    assert patches[0]["file_path"] == "file1.rs"
+    assert patches[1]["file_path"] == "file2.rs"
+    assert patches[1]["delete_file"]
 
 
 def test_preflight_checks_fail_file_not_found(capsys):
@@ -254,26 +261,6 @@ def test_apply_move_success(tmp_path):
     assert not src.exists()
     assert dst.exists()
     assert dst.read_text(encoding="utf-8") == "import os"
-
-
-def test_smart_detection_old():
-    content = "file\n<<<<<<< SEARCH\nfoo\n=======\nbar\n>>>>>>> REPLACE"
-    assert "<<<<<<< SEARCH" in content
-
-
-def test_smart_detection_new():
-    content = ">>>> file\n<<<<\nfoo\n====\nbar\n>>>>"
-    assert "<<<<<<< SEARCH" not in content
-
-
-def test_smart_detection_delete():
-    content = "file.py <<<<<<< DELETE"
-    assert " <<<<<<< DELETE" in content
-
-
-def test_smart_detection_move():
-    content = "src.py <<<<<<< MOVE >>>>>>> dst.py"
-    assert "<<<<<<< MOVE >>>>>>>" in content
 
 
 def test_file_creation_logic(tmp_path):

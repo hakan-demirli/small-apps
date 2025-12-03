@@ -6,6 +6,42 @@ import shutil
 import sys
 
 
+def parse_line_command(line):
+    """
+    Parses single-line commands like DELETE or MOVE.
+    Returns a patch dictionary or None.
+    """
+    stripped = line.strip()
+
+    if stripped.endswith("<<<<<<< DELETE"):
+        parts = stripped.split("<<<<<<< DELETE")
+        if len(parts) > 0:
+            fpath = parts[0].strip()
+            if fpath:
+                return {
+                    "file_path": fpath,
+                    "search_block": "",
+                    "replace_block": "",
+                    "delete_file": True,
+                }
+
+    if "<<<<<<< MOVE >>>>>>>" in stripped:
+        parts = stripped.split("<<<<<<< MOVE >>>>>>>")
+        if len(parts) == 2:
+            src = parts[0].strip()
+            dst = parts[1].strip()
+            if src and dst:
+                return {
+                    "file_path": src,
+                    "move_destination": dst,
+                    "search_block": "",
+                    "replace_block": "",
+                    "delete_file": False,
+                }
+
+    return None
+
+
 def parse_diff_fenced(patch_content):
     """
     Parses the "SEARCH/REPLACE" format:
@@ -15,6 +51,8 @@ def parse_diff_fenced(patch_content):
     =======
     ...
     >>>>>>> REPLACE
+
+    Also handles interleaved DELETE and MOVE commands.
     """
     lines = patch_content.splitlines(True)
 
@@ -30,19 +68,19 @@ def parse_diff_fenced(patch_content):
         if state == "idle":
             if stripped_line == "<<<<<<< SEARCH":
                 potential_path = previous_line.strip()
-
                 if potential_path:
                     file_path = potential_path
-                elif file_path:
-                    pass
-                else:
-                    pass
-
                 state = "in_search"
                 search_lines = []
                 replace_lines = []
             else:
-                previous_line = line if stripped_line else ""
+                cmd_patch = parse_line_command(line)
+                if cmd_patch:
+                    yield cmd_patch
+                    previous_line = ""
+                else:
+                    previous_line = line if stripped_line else ""
+
         elif state == "in_search":
             if stripped_line == "=======":
                 state = "in_replace"
@@ -90,6 +128,10 @@ def parse_arrow_blocks(patch_content):
                 state = "in_search"
                 search_lines = []
                 replace_lines = []
+            else:
+                cmd_patch = parse_line_command(line)
+                if cmd_patch:
+                    yield cmd_patch
 
         elif state == "in_search":
             if stripped_line == "====":
@@ -142,6 +184,10 @@ def parse_source_dest_blocks(patch_content):
                 state = "in_search"
                 search_lines = []
                 replace_lines = []
+            else:
+                cmd_patch = parse_line_command(line)
+                if cmd_patch:
+                    yield cmd_patch
 
         elif state == "in_search":
             if stripped_line == "====":
@@ -162,50 +208,16 @@ def parse_source_dest_blocks(patch_content):
                 replace_lines.append(line)
 
 
-def parse_delete_commands(patch_content):
+def parse_raw_line_commands(patch_content):
     """
-    Parses the format:
-    path/to/file <<<<<<< DELETE
+    Parses content that only contains DELETE or MOVE commands,
+    or as a fallback if no block markers are found.
     """
     lines = patch_content.splitlines()
     for line in lines:
-        line = line.strip()
-        if line.endswith("<<<<<<< DELETE"):
-            # Extract the file path (everything before the marker)
-            parts = line.split("<<<<<<< DELETE")
-            if len(parts) > 0:
-                file_path = parts[0].strip()
-                if file_path:
-                    yield {
-                        "file_path": file_path,
-                        "search_block": "",
-                        "replace_block": "",
-                        "delete_file": True,
-                    }
-
-
-def parse_move_commands(patch_content):
-    """
-    Parses the format:
-    old_path <<<<<<< MOVE >>>>>>> new_path
-    """
-    lines = patch_content.splitlines()
-    marker = "<<<<<<< MOVE >>>>>>>"
-    for line in lines:
-        line = line.strip()
-        if marker in line:
-            parts = line.split(marker)
-            if len(parts) == 2:
-                src = parts[0].strip()
-                dst = parts[1].strip()
-                if src and dst:
-                    yield {
-                        "file_path": src,
-                        "move_destination": dst,
-                        "search_block": "",
-                        "replace_block": "",
-                        "delete_file": False,
-                    }
+        cmd_patch = parse_line_command(line)
+        if cmd_patch:
+            yield cmd_patch
 
 
 def find_occurrences(source_lines, search_block_str):
@@ -485,24 +497,22 @@ def main():
         patch_content = sys.stdin.read()
 
     if "<<<<<<< SEARCH" in patch_content:
-        print("Detected format: SEARCH/REPLACE block")
+        print("Detected format: SEARCH/REPLACE block (fenced)")
         patches = list(parse_diff_fenced(patch_content))
-    elif "<<<<<<< MOVE >>>>>>>" in patch_content:
-        print("Detected format: MOVE commands")
-        patches = list(parse_move_commands(patch_content))
-    elif " <<<<<<< DELETE" in patch_content:
-        print("Detected format: DELETE commands")
-        patches = list(parse_delete_commands(patch_content))
     elif re.search(r"^>>>> ", patch_content, re.MULTILINE):
         print(
             "Detected format: Source/Dest block (>>>> file <<<< search ==== replace >>>>)"
         )
         patches = list(parse_source_dest_blocks(patch_content))
-    else:
+    elif re.search(r"^<<<< ", patch_content, re.MULTILINE):
         print("Detected format: Arrow block (<<<< file search ==== replace >>>>)")
         patches = list(parse_arrow_blocks(patch_content))
+    else:
+        print("Detected format: Line commands (DELETE / MOVE)")
+        patches = list(parse_raw_line_commands(patch_content))
+
     if not patches:
-        print("No valid patch blocks found in the input.")
+        print("No valid patch blocks or commands found in the input.")
         sys.exit(0)
 
     preflight_ok, errors = run_preflight_checks(patches)
