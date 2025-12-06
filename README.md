@@ -1,3 +1,2 @@
-# Small Apps
-
-A collection of small, personal utility applications and scripts.
+# NUR
+Nix User Repository
