@@ -78,6 +78,8 @@ def parse_diff_fenced(patch_content):
                 if cmd_patch:
                     yield cmd_patch
                     previous_line = ""
+                elif stripped_line.startswith("```"):
+                    pass
                 else:
                     previous_line = line if stripped_line else ""
 

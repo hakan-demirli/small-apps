@@ -143,6 +143,26 @@ file2.rs <<<<<<< DELETE
     assert patches[1]["delete_file"]
 
 
+def test_parse_diff_fenced_with_code_fences():
+    """
+    Tests that code fences (```) immediately following the filename
+    and preceding the SEARCH block are ignored.
+    """
+    patch_text = """
+repx-tui/src/app.rs
+```rust
+<<<<<<< SEARCH
+old_code
+=======
+new_code
+>>>>>>> REPLACE
+"""
+    patches = list(dap.parse_diff_fenced(patch_text))
+    assert len(patches) == 1
+    assert patches[0]["file_path"] == "repx-tui/src/app.rs"
+    assert "old_code" in patches[0]["search_block"]
+
+
 def test_preflight_checks_fail_file_not_found(capsys):
     patches = [
         {"file_path": "nonexistent.txt", "search_block": "foo", "replace_block": "bar"}
