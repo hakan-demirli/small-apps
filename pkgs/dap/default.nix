@@ -1,34 +1,34 @@
 {
   pkgs,
+  lib,
 }:
+let
+  realDerivation = pkgs.callPackage ./package.nix { };
+  checks = import ./nix/checks.nix {
+    inherit pkgs;
+  };
 
-pkgs.python3Packages.buildPythonApplication {
-  pname = "dap";
-  version = "0.1.0";
+in
+pkgs.stdenv.mkDerivation {
+  name = "dap-checked";
 
-  src = ./.;
-  pyproject = true;
+  dontUnpack = true;
+  dontBuild = true;
 
-  build-system = [
-    pkgs.python3Packages.setuptools
-  ];
-
-  nativeCheckInputs = [
-    pkgs.python3Packages.pytest
-  ];
-
+  doCheck = true;
   checkPhase = ''
-    runHook preCheck
+    echo "Running checks..."
+    ${builtins.concatStringsSep "\n" (builtins.map (c: "echo ${c}") (builtins.attrValues checks))}
+  '';
 
-    export PYTHONPATH=$PWD:$PYTHONPATH
-
-    pytest dap_tests.py
-
-    runHook postCheck
+  installPhase = ''
+    mkdir -p $out/bin
+    cp ${realDerivation}/bin/dap $out/bin/dap
   '';
 
   meta = {
-    description = "Diff Apply Tool";
-    mainProgram = "dap";
+    description = "Diff-fenced style diff apply tool.";
+    license = lib.licenses.mit;
+    maintainers = [ lib.maintainers.hakan-demirli ];
   };
 }
