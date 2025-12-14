@@ -7,4 +7,15 @@ pkgs.rustPlatform.buildRustPackage {
 
   src = ./.;
   cargoLock.lockFile = ./Cargo.lock;
+
+  cargoBuildFlags = [
+    "-p"
+    "dap-cli"
+  ];
+  cargoTestFlags = [
+    "-p"
+    "dap-core"
+    "-p"
+    "dap-cli"
+  ];
 }

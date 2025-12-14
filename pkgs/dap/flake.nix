@@ -22,6 +22,7 @@
 
       in
       {
+        packages.dap = dap;
         packages.default = dap;
         devShells.default = pkgs.mkShell {
           packages = [

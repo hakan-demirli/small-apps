@@ -1,5 +1,5 @@
 use anyhow::Result;
-use dap::{apply_patch, parse, run_preflight_checks};
+use dap_core::{apply_patch, parse, run_preflight_checks};
 use std::env;
 use std::fs;
 use std::io::{self, Read};

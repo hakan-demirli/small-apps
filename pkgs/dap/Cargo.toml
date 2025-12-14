@@ -1,12 +1,17 @@
-[package]
-name = "dap"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "crates/dap-core",
+    "crates/dap-cli",
+]
+resolver = "2"
 
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0"
-regex = "1.10"
+regex = "1.12"
 atty = "0.2"
+tempfile = "3.23"
 
-[dev-dependencies]
-tempfile = "3.10"
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

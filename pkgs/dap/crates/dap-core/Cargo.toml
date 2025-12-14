@@ -1,0 +1,11 @@
+[package]
+name = "dap-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core patch parsing and application logic for DAP"
+
+[dependencies]
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -1,0 +1,14 @@
+[package]
+name = "dap-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Command-line interface for DAP patch tool"
+
+[[bin]]
+name = "dap"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+atty = { workspace = true }
+dap-core = { path = "../dap-core" }
