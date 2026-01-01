@@ -27,9 +27,30 @@ fi
 
 echo "Embedding data into HTML viewer..."
 
-JSON_CONTENT=$("$JQ_BIN" -c . < "$JSON_OUTPUT")
+# Minify JSON to a temporary file
+JSON_MIN="$TEMP_DIR/graph.min.json"
+"$JQ_BIN" -c . "$JSON_OUTPUT" > "$JSON_MIN"
 
-sed "s#null; /\* JSON_PLACEHOLDER \*/#${JSON_CONTENT}#" "$VIEWER_HTML" > "$FINAL_HTML_OUTPUT"
+# Use awk to inject the JSON content into the HTML template to avoid "Argument list too long"
+awk -v json_file="$JSON_MIN" '
+  {
+    if (match($0, /null; \/\* JSON_PLACEHOLDER \*\//)) {
+      # Print part before match
+      printf "%s", substr($0, 1, RSTART - 1)
+
+      # Print file content
+      while ((getline line < json_file) > 0) {
+        printf "%s", line
+      }
+      close(json_file)
+
+      # Print part after match
+      print substr($0, RSTART + RLENGTH)
+    } else {
+      print
+    }
+  }
+' "$VIEWER_HTML" > "$FINAL_HTML_OUTPUT"
 
 echo "Opening visualization in browser: $FINAL_HTML_OUTPUT"
 xdg-open "$FINAL_HTML_OUTPUT" &> /dev/null || open "$FINAL_HTML_OUTPUT" &> /dev/null || start "" "$FINAL_HTML_OUTPUT" &> /dev/null || {
