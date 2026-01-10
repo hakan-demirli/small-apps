@@ -28,18 +28,16 @@
               allMyPackages = lib.genAttrs allPackageNames (
                 name: pkgs.callPackage (./pkgs + "/${name}/default.nix") { }
               );
+
+              validPackages = lib.filterAttrs (name: pkg: !(pkg.meta.broken or false)) allMyPackages;
             in
             {
-              packages = allMyPackages // {
-                default =
-                  let
-                    enabledPackages = lib.filterAttrs (name: pkg: !(pkg.meta.broken or false)) allMyPackages;
-                  in
-                  pkgs.buildEnv {
-                    name = "small-apps-bundle-${system}";
-                    paths = lib.attrValues enabledPackages;
-                    meta.description = "Build environment containing all enabled small-apps";
-                  };
+              packages = validPackages // {
+                default = pkgs.buildEnv {
+                  name = "small-apps-bundle-${system}";
+                  paths = lib.attrValues validPackages;
+                  meta.description = "Build environment containing all enabled small-apps";
+                };
               };
             }
           );
