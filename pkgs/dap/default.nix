@@ -30,5 +30,6 @@ pkgs.stdenv.mkDerivation {
     description = "Diff-fenced style diff apply tool.";
     license = lib.licenses.mit;
     maintainers = [ lib.maintainers.hakan-demirli ];
+    mainProgram = "dap";
   };
 }

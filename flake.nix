@@ -8,14 +8,13 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       flake-utils,
       ...
     }:
     let
       lib = nixpkgs.lib;
-      findPackageDirs = path: lib.filterAttrs (name: type: type == "directory") (builtins.readDir path);
+      findPackageDirs = fpath: lib.filterAttrs (name: type: type == "directory") (builtins.readDir fpath);
       allPackageNames = lib.attrNames (findPackageDirs ./pkgs);
 
       perSystem =
@@ -29,16 +28,18 @@
               allMyPackages = lib.genAttrs allPackageNames (
                 name: pkgs.callPackage (./pkgs + "/${name}/default.nix") { }
               );
-
-              enabledPackages = lib.filterAttrs (name: pkg: !(pkg.meta.broken or false)) allMyPackages;
             in
             {
-              packages = enabledPackages // {
-                default = pkgs.buildEnv {
-                  name = "small-apps-bundle-${system}";
-                  paths = lib.attrValues enabledPackages;
-                  meta.description = "Build environment containing all enabled small-apps";
-                };
+              packages = allMyPackages // {
+                default =
+                  let
+                    enabledPackages = lib.filterAttrs (name: pkg: !(pkg.meta.broken or false)) allMyPackages;
+                  in
+                  pkgs.buildEnv {
+                    name = "small-apps-bundle-${system}";
+                    paths = lib.attrValues enabledPackages;
+                    meta.description = "Build environment containing all enabled small-apps";
+                  };
               };
             }
           );
