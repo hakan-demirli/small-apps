@@ -61,7 +61,14 @@ def get_faded_color(base_rgb, distance_from_today):
     fade_factor = min(1.0, abs(distance_from_today) / MAX_FADE_DAYS)
     r = base_rgb[0] + (FADE_TARGET_RGB[0] - base_rgb[0]) * fade_factor
     g = base_rgb[1] + (FADE_TARGET_RGB[1] - base_rgb[1]) * fade_factor
-    b = base_rgb[2] + (FADE_TARGET_RGB[2] - base_rgb[2]) * fade_factor
+    return rgb_to_ansi(r, g, b)
+
+
+def interpolate_color(start_rgb, end_rgb, fraction):
+    fraction = max(0.0, min(1.0, fraction))
+    r = start_rgb[0] + (end_rgb[0] - start_rgb[0]) * fraction
+    g = start_rgb[1] + (end_rgb[1] - start_rgb[1]) * fraction
+    b = start_rgb[2] + (end_rgb[2] - start_rgb[2]) * fraction
     return rgb_to_ansi(r, g, b)
 
 

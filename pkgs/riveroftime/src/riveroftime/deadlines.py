@@ -13,6 +13,7 @@ from .shared import (
     TRACE_LEVEL_NUM,
     clear_screen,
     get_faded_color,
+    interpolate_color,
     parse_events,
     read_events_from_file,
     rgb_to_ansi,
@@ -39,24 +40,20 @@ def print_deadlines(events_dict, logger):
 
     all_events.sort(key=lambda x: x[0])
 
-    for days, status, name in all_events:
-        if days < 0:
-            if status not in ["x", "X", ">"]:
-                color = STATIC_STYLES["unhandled_past"]
-                count_color = STATIC_STYLES["unhandled_past"]
-            else:
-                color = rgb_to_ansi(*FADE_TARGET_RGB)
-                count_color = rgb_to_ansi(*FADE_TARGET_RGB)
-        elif days == 0:
-            color = STATIC_STYLES["today"] + STATIC_STYLES["bold"]
-            count_color = rgb_to_ansi(*BASE_COLORS["countdown"])
+    total_items = len(all_events)
+    GRADIENT_START = (189, 147, 249)
+    GRADIENT_END = (127, 210, 228)
+
+    for i, (days, status, name) in enumerate(all_events):
+        if total_items > 1:
+            fraction = i / (total_items - 1)
         else:
-            base_status_color = STATUS_COLORS.get(status, BASE_COLORS["event"])
-            color = get_faded_color(base_status_color, days)
-            count_color = get_faded_color(BASE_COLORS["countdown"], days)
+            fraction = 0.0
 
+        color = interpolate_color(GRADIENT_START, GRADIENT_END, fraction)
+        count_color = color
+        
         symbol = STATUS_SYMBOLS.get(status, "○")
-
         reset = STATIC_STYLES["reset"]
 
         print(f"{count_color}{days:>4}{reset} {color}{symbol} {name}{reset}")
