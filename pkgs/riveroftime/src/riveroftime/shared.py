@@ -55,7 +55,6 @@ def rgb_to_ansi(r, g, b):
 
 
 def get_faded_color(base_rgb, distance_from_today):
-    # Only fade for future events further away
     if distance_from_today <= 0:
         return rgb_to_ansi(*base_rgb)
 
@@ -77,7 +76,7 @@ STATUS_SYMBOLS = {
     " ": "○",
     "x": "✓",
     "X": "✓",
-    ">": "▸",
+    ">": "›",
     "!": "!",
     "-": "-",
     "/": "…",
@@ -86,7 +85,7 @@ STATUS_SYMBOLS = {
     "I": "ℹ",
     "L": "⚲",
     "*": "*",
-    "<": "›",
+    "<": "‹",
 }
 
 STATUS_COLORS = {

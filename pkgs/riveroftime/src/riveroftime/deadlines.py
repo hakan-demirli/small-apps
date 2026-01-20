@@ -27,21 +27,20 @@ def print_deadlines(events_dict, logger):
     today = datetime.now().date()
     all_events = []
 
-    # Flatten events
     for event_date, events in events_dict.items():
         days_remaining = (event_date - today).days
         for status_char, event_name in events:
             if status_char == "<":
                 all_events.append((days_remaining, status_char, event_name))
 
-    # Sort by days remaining
+    if not all_events:
+        print(f"{STATIC_STYLES['reset']}No upcoming deadlines found.")
+        return
+
     all_events.sort(key=lambda x: x[0])
 
     for days, status, name in all_events:
-        # Determine colors
         if days < 0:
-            # Past event
-            # Use red if not completed/handled, else faded gray
             if status not in ["x", "X", ">"]:
                 color = STATIC_STYLES["unhandled_past"]
                 count_color = STATIC_STYLES["unhandled_past"]
@@ -49,22 +48,17 @@ def print_deadlines(events_dict, logger):
                 color = rgb_to_ansi(*FADE_TARGET_RGB)
                 count_color = rgb_to_ansi(*FADE_TARGET_RGB)
         elif days == 0:
-            # Today
             color = STATIC_STYLES["today"] + STATIC_STYLES["bold"]
             count_color = rgb_to_ansi(*BASE_COLORS["countdown"])
         else:
-            # Future
             base_status_color = STATUS_COLORS.get(status, BASE_COLORS["event"])
             color = get_faded_color(base_status_color, days)
             count_color = get_faded_color(BASE_COLORS["countdown"], days)
 
         symbol = STATUS_SYMBOLS.get(status, "○")
 
-        # Reset at end
         reset = STATIC_STYLES["reset"]
 
-        # Format: " 466 <icon> someevent"
-        # Align days to right
         print(f"{count_color}{days:>4}{reset} {color}{symbol} {name}{reset}")
 
 

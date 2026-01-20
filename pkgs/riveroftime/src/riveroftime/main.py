@@ -148,9 +148,7 @@ def run(file_path=None):
     if file_path is None:
         file_path = EVENTS_FILE_PATH
 
-    # if len(sys.argv) > 1 and sys.argv[1] == "--test":
-    #    run_tests()
-    #    sys.exit()
+
 
     DESIRED_LOG_LEVEL = TRACE_LEVEL_NUM
 
