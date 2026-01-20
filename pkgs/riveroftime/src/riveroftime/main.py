@@ -68,7 +68,7 @@ def generate_calendar_view(events_dict, logger):
         if (
             distance < 0
             and events_for_day
-            and any(s not in ["x", "X", ">"] for s, _ in events_for_day)
+            and any(s not in ["x", "X", ">"] for s, _, _ in events_for_day)
         ):
             has_unhandled_past_event = True
 
@@ -103,7 +103,7 @@ def generate_calendar_view(events_dict, logger):
             final_line.append(countdown_gutter)
             final_line.append(" ")
 
-            status_char, event_name = events_for_day[0]
+            status_char, event_name, _ = events_for_day[0]
             status_symbol = STATUS_SYMBOLS.get(status_char, "○")
             status_base_color = STATUS_COLORS.get(status_char, BASE_COLORS["event"])
 
@@ -126,7 +126,7 @@ def generate_calendar_view(events_dict, logger):
 
             if len(events_for_day) > 1:
                 event_indentation = " " * 9
-                for status_char, event_name in events_for_day[1:]:
+                for status_char, event_name, _ in events_for_day[1:]:
                     if lines_printed >= available_lines:
                         break
 

@@ -17,20 +17,23 @@ from .shared import (
 )
 
 
-def generate_deadlines_table(events_dict, logger):
+def generate_deadlines_table(events_dict, logger, target_symbols):
     today = datetime.now().date()
     all_events = []
 
     for event_date, events in events_dict.items():
         days_remaining = (event_date - today).days
-        for status_char, event_name in events:
-            if status_char == "<":
-                all_events.append((days_remaining, status_char, event_name))
+        for status_char, event_name, line_number in events:
+            if status_char in target_symbols:
+                all_events.append(
+                    (days_remaining, line_number, status_char, event_name)
+                )
 
     if not all_events:
         return Text("No upcoming deadlines found.")
 
-    all_events.sort(key=lambda x: x[0])
+    # Sort by Days first, then Line Number (file order)
+    all_events.sort(key=lambda x: (x[0], x[1]))
 
     total_items = len(all_events)
     GRADIENT_START = (189, 147, 249)
@@ -41,7 +44,7 @@ def generate_deadlines_table(events_dict, logger):
     table.add_column("Symbol", justify="center")
     table.add_column("Event", justify="left")
 
-    for i, (days, status, name) in enumerate(all_events):
+    for i, (days, _, status, name) in enumerate(all_events):
         fraction = i / (total_items - 1) if total_items > 1 else 0.0
 
         color_hex = interpolate_color(GRADIENT_START, GRADIENT_END, fraction)
@@ -58,9 +61,11 @@ def generate_deadlines_table(events_dict, logger):
     return table
 
 
-def run(file_path=None):
+def run(file_path=None, symbols=None):
     if file_path is None:
         file_path = EVENTS_FILE_PATH
+
+    target_symbols = symbols if symbols else ["<"]
 
     DESIRED_LOG_LEVEL = TRACE_LEVEL_NUM
     logger = setup_logging(DESIRED_LOG_LEVEL, log_filename="deadlines.log")
@@ -71,7 +76,9 @@ def run(file_path=None):
                 event_lines = read_events_from_file(file_path, logger)
                 parsed_event_data = parse_events(event_lines, logger)
 
-                table_or_text = generate_deadlines_table(parsed_event_data, logger)
+                table_or_text = generate_deadlines_table(
+                    parsed_event_data, logger, target_symbols
+                )
                 live.update(table_or_text, refresh=True)
 
                 time.sleep(5)

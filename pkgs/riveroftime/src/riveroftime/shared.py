@@ -160,7 +160,7 @@ def parse_events(event_list, logger):
 
     context_stack = {}
 
-    for line in event_list:
+    for i, line in enumerate(event_list):
         if not line.strip():
             continue
 
@@ -235,7 +235,9 @@ def parse_events(event_list, logger):
                 logger.debug(
                     f"Parsed date '{event_date}' with event '{event_name_str}' and status '{status_char}' from line."
                 )
-                parsed.setdefault(event_date, []).append((status_char, event_name_str))
+                parsed.setdefault(event_date, []).append(
+                    (status_char, event_name_str, i)
+                )
             except ValueError:
                 logger.warning(
                     f"Found a valid-looking date pattern but failed to parse it: '{match.group(0)}'. Skipping line: '{line}'"

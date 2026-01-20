@@ -52,53 +52,53 @@ class TestParser(unittest.TestCase):
         expected_result = {
             datetime(2025, 11, 1).date(): sorted(
                 [
-                    (" ", "Untitled Event"),
-                    (" ", "Untitled Event"),
-                    (" ", "Untitled Event"),
-                    (" ", "Untitled Event"),
-                    (" ", "* do smth4"),
-                    (" ", "* do smth5"),
-                    (" ", "* do smth6"),
+                    (" ", "Untitled Event", 0),
+                    (" ", "Untitled Event", 1),
+                    (" ", "Untitled Event", 2),
+                    (" ", "Untitled Event", 3),
+                    (" ", "* do smth4", 12),
+                    (" ", "* do smth5", 13),
+                    (" ", "* do smth6", 14),
                 ]
             ),
             datetime(2025, 11, 15).date(): sorted(
                 [
-                    (" ", "task1"),
-                    ("x", "task2"),
-                    ("X", "task3"),
-                    ("-", "task4"),
-                    ("a", "task5"),
-                    (" ", "task6"),
-                    ("x", "task7"),
+                    (" ", "task1", 22),
+                    ("x", "task2", 23),
+                    ("X", "task3", 24),
+                    ("-", "task4", 25),
+                    ("a", "task5", 26),
+                    (" ", "task6", 27),
+                    ("x", "task7", 28),
                 ]
             ),
             datetime(2025, 11, 16).date(): sorted(
                 [
-                    ("!", "urgent1"),
-                    (">", "delegated1"),
-                    ("/", "inprogress1"),
-                    ("?", "clarify1"),
+                    ("!", "urgent1", 29),
+                    (">", "delegated1", 30),
+                    ("/", "inprogress1", 31),
+                    ("?", "clarify1", 32),
                 ]
             ),
-            datetime(2026, 11, 1).date(): sorted([(" ", "Untitled Event")]),
-            datetime(2026, 11, 8).date(): sorted([(" ", "Untitled Event")]),
+            datetime(2026, 11, 1).date(): sorted([(" ", "Untitled Event", 4)]),
+            datetime(2026, 11, 8).date(): sorted([(" ", "Untitled Event", 5)]),
             datetime(2029, 11, 8).date(): sorted(
                 [
-                    (" ", "Untitled Event"),
-                    (" ", "Untitled Event"),
-                    (" ", "* do smth1"),
-                    (" ", "* do smth2"),
-                    (" ", "* do smth3"),
-                    (" ", "* do smth7"),
-                    (" ", "* do smth8"),
-                    (" ", "do smth9"),
-                    (" ", "do smth10"),
-                    (" ", "do smth11"),
-                    (" ", "do smth12"),
-                    (" ", "do smth13"),
+                    (" ", "Untitled Event", 6),
+                    (" ", "Untitled Event", 7),
+                    (" ", "* do smth1", 9),
+                    (" ", "* do smth2", 10),
+                    (" ", "* do smth3", 11),
+                    (" ", "* do smth7", 15),
+                    (" ", "* do smth8", 16),
+                    (" ", "do smth9", 17),
+                    (" ", "do smth10", 18),
+                    (" ", "do smth11", 19),
+                    (" ", "do smth12", 20),
+                    (" ", "do smth13", 21),
                 ]
             ),
-            datetime(2038, 11, 8).date(): sorted([(" ", "Untitled Event")]),
+            datetime(2038, 11, 8).date(): sorted([(" ", "Untitled Event", 8)]),
         }
 
         actual_result = parse_events(test_cases, self.logger)

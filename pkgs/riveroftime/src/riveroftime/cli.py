@@ -14,11 +14,18 @@ def main():
         "--calendar", action="store_true", help="Show simple calendar view"
     )
     parser.add_argument("--file", type=str, help="Path to events file", default=None)
+    parser.add_argument(
+        "--symbols",
+        type=str,
+        help="Filter by status symbols (e.g. '<' or '!')",
+        default=None,
+    )
 
     args = parser.parse_args()
 
     if args.deadlines:
-        deadlines.run(file_path=args.file)
+        symbol_list = list(args.symbols) if args.symbols else None
+        deadlines.run(file_path=args.file, symbols=symbol_list)
     elif args.flow:
         flow_main.run(file_path=args.file)
     elif args.calendar:
