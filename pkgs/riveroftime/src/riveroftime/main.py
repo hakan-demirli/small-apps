@@ -2,6 +2,8 @@ import calendar
 import time
 from datetime import datetime, timedelta
 
+from rich.console import Group
+from rich.live import Live
 from rich.text import Text
 
 from .shared import (
@@ -12,7 +14,6 @@ from .shared import (
     STATUS_COLORS,
     STATUS_SYMBOLS,
     TRACE_LEVEL_NUM,
-    clear_screen,
     console,
     get_faded_color,
     parse_events,
@@ -28,9 +29,8 @@ STATIC_STYLES = {
 }
 
 
-def print_dynamic_calendar(events_dict, logger):
-    logger.debug("Clearing screen and starting calendar print.")
-    clear_screen()
+def generate_calendar_view(events_dict, logger):
+    renderables = []
 
     try:
         available_lines = console.size.height - 2
@@ -56,7 +56,7 @@ def print_dynamic_calendar(events_dict, logger):
             if lines_printed + 2 > available_lines:
                 break
             month_name = calendar.month_name[current_date.month]
-            console.print(f"[{header_color}]{month_name.upper()}[/]")
+            renderables.append(Text(f"{month_name.upper()}", style=header_color))
             lines_printed += 1
             last_printed_month = current_date.month
 
@@ -121,7 +121,7 @@ def print_dynamic_calendar(events_dict, logger):
             first_event_text = Text(f"{status_symbol} {event_name}", style=status_color)
             final_line.append(first_event_text)
 
-            console.print(final_line)
+            renderables.append(final_line)
             lines_printed += 1
 
             if len(events_for_day) > 1:
@@ -150,13 +150,15 @@ def print_dynamic_calendar(events_dict, logger):
                     event_line.append(
                         f"{status_symbol} {event_name}", style=status_color
                     )
-                    console.print(event_line)
+                    renderables.append(event_line)
                     lines_printed += 1
         else:
-            console.print(final_line)
+            renderables.append(final_line)
             lines_printed += 1
 
         current_date += timedelta(days=1)
+
+    return Group(*renderables)
 
 
 def run(file_path=None):
@@ -168,24 +170,31 @@ def run(file_path=None):
     logger = setup_logging(DESIRED_LOG_LEVEL, log_filename="riveroftime.log")
     logger.info("--- Script started ---")
 
-    while True:
-        try:
-            event_lines = read_events_from_file(file_path, logger)
-            parsed_event_data = parse_events(event_lines, logger)
-            print_dynamic_calendar(parsed_event_data, logger)
+    with Live(console=console, auto_refresh=False, screen=True) as live:
+        while True:
+            try:
+                event_lines = read_events_from_file(file_path, logger)
+                parsed_event_data = parse_events(event_lines, logger)
 
-            logger.debug("Main loop iteration complete. Sleeping for 5 seconds.")
-            time.sleep(5)
-        except KeyboardInterrupt:
-            logger.info("--- Script stopped by user (KeyboardInterrupt) ---")
-            console.print("\nExiting.")
-            break
-        except Exception as e:
-            logger.error(
-                f"An unexpected error occurred in the main loop: {e}", exc_info=True
-            )
-            console.print(f"[bold red]An unexpected error occurred: {e}[/]")
-            time.sleep(10)
+                view_group = generate_calendar_view(parsed_event_data, logger)
+
+                live.update(view_group, refresh=True)
+
+                logger.debug("Main loop iteration complete. Sleeping for 5 seconds.")
+                time.sleep(5)
+            except KeyboardInterrupt:
+                logger.info("--- Script stopped by user (KeyboardInterrupt) ---")
+                console.print("\nExiting.")
+                break
+            except Exception as e:
+                logger.error(
+                    f"An unexpected error occurred in the main loop: {e}", exc_info=True
+                )
+                live.stop()
+                console.print(f"[bold red]An unexpected error occurred: {e}[/]")
+
+                time.sleep(10)
+                live.start()
 
 
 if __name__ == "__main__":

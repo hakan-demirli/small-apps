@@ -129,10 +129,6 @@ STATUS_COLORS = {
 }
 
 
-def clear_screen():
-    console.clear()
-
-
 def read_events_from_file(file_path, logger):
     logger.info(f"Attempting to read events file: {file_path}")
     if not os.path.exists(file_path):

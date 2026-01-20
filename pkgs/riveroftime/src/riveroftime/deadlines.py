@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 
+from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
@@ -8,7 +9,6 @@ from .shared import (
     EVENTS_FILE_PATH,
     STATUS_SYMBOLS,
     TRACE_LEVEL_NUM,
-    clear_screen,
     console,
     interpolate_color,
     parse_events,
@@ -17,10 +17,7 @@ from .shared import (
 )
 
 
-def print_deadlines(events_dict, logger):
-    logger.debug("Clearing screen and starting deadlines print.")
-    clear_screen()
-
+def generate_deadlines_table(events_dict, logger):
     today = datetime.now().date()
     all_events = []
 
@@ -31,8 +28,7 @@ def print_deadlines(events_dict, logger):
                 all_events.append((days_remaining, status_char, event_name))
 
     if not all_events:
-        console.print("No upcoming deadlines found.")
-        return
+        return Text("No upcoming deadlines found.")
 
     all_events.sort(key=lambda x: x[0])
 
@@ -59,8 +55,7 @@ def print_deadlines(events_dict, logger):
             Text(symbol, style=color_hex),
             Text(name, style=f"{color_hex}"),
         )
-
-    console.print(table)
+    return table
 
 
 def run(file_path=None):
@@ -70,20 +65,25 @@ def run(file_path=None):
     DESIRED_LOG_LEVEL = TRACE_LEVEL_NUM
     logger = setup_logging(DESIRED_LOG_LEVEL, log_filename="deadlines.log")
 
-    while True:
-        try:
-            event_lines = read_events_from_file(file_path, logger)
-            parsed_event_data = parse_events(event_lines, logger)
-            print_deadlines(parsed_event_data, logger)
+    with Live(console=console, auto_refresh=False, screen=True) as live:
+        while True:
+            try:
+                event_lines = read_events_from_file(file_path, logger)
+                parsed_event_data = parse_events(event_lines, logger)
 
-            time.sleep(5)
-        except KeyboardInterrupt:
-            console.print("\nExiting.")
-            break
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}", exc_info=True)
-            console.print(f"[bold red]An unexpected error occurred: {e}[/]")
-            time.sleep(10)
+                table_or_text = generate_deadlines_table(parsed_event_data, logger)
+                live.update(table_or_text, refresh=True)
+
+                time.sleep(5)
+            except KeyboardInterrupt:
+                console.print("\nExiting.")
+                break
+            except Exception as e:
+                logger.error(f"Unexpected error: {e}", exc_info=True)
+                live.stop()
+                console.print(f"[bold red]An unexpected error occurred: {e}[/]")
+                time.sleep(10)
+                live.start()
 
 
 if __name__ == "__main__":
