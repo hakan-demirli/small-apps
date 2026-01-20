@@ -1,10 +1,9 @@
 import calendar
 import os
-import sys
 import time
 from datetime import datetime, timedelta
 
-from colorama import Fore, Style
+from colorama import Fore
 
 from .shared import (
     BASE_COLORS,
@@ -61,9 +60,12 @@ def print_dynamic_calendar(events_dict, logger):
         distance = (current_date - today).days
 
         has_unhandled_past_event = False
-        if distance < 0 and events_for_day:
-            if any(s not in ["x", "X", ">"] for s, _ in events_for_day):
-                has_unhandled_past_event = True
+        if (
+            distance < 0
+            and events_for_day
+            and any(s not in ["x", "X", ">"] for s, _ in events_for_day)
+        ):
+            has_unhandled_past_event = True
 
         if distance < 0:
             day_color = (
@@ -148,8 +150,6 @@ def run(file_path=None):
     if file_path is None:
         file_path = EVENTS_FILE_PATH
 
-
-
     DESIRED_LOG_LEVEL = TRACE_LEVEL_NUM
 
     logger = setup_logging(DESIRED_LOG_LEVEL, log_filename="riveroftime.log")
@@ -173,6 +173,7 @@ def run(file_path=None):
             )
             print(f"{Fore.RED}An unexpected error occurred: {e}")
             time.sleep(10)
+
 
 if __name__ == "__main__":
     run()

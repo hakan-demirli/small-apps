@@ -84,5 +84,6 @@ def run(file_path=None):
             print(f"{Fore.RED}An unexpected error occurred: {e}")
             time.sleep(10)
 
+
 if __name__ == "__main__":
     run()

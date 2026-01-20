@@ -1,7 +1,9 @@
 import logging
 import unittest
 from datetime import datetime
+
 from riveroftime.shared import parse_events
+
 
 class TestParser(unittest.TestCase):
     def setUp(self):
@@ -105,6 +107,7 @@ class TestParser(unittest.TestCase):
             actual_result[key].sort()
 
         self.assertEqual(actual_result, expected_result)
+
 
 if __name__ == "__main__":
     unittest.main()

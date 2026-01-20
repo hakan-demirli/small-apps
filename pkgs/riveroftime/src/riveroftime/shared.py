@@ -76,16 +76,16 @@ STATUS_SYMBOLS = {
     " ": "○",
     "x": "✓",
     "X": "✓",
-    ">": "›",
+    ">": "\u203a",
     "!": "!",
     "-": "-",
     "/": "…",
     "?": "?",
     "o": "⊘",
-    "I": "ℹ",
+    "I": "\u2139",
     "L": "⚲",
     "*": "*",
-    "<": "‹",
+    "<": "\u2039",
 }
 
 STATUS_COLORS = {
@@ -126,7 +126,7 @@ def read_events_from_file(file_path, logger):
         return []
 
     try:
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             lines = f.readlines()
         lines = [line.rstrip("\n") for line in lines]
         logger.info(f"Successfully read {len(lines)} lines from file.")
