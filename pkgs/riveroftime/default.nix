@@ -2,8 +2,8 @@
 let
   pythonEnv = pkgs.python3.withPackages (
     pythonPackages: with pythonPackages; [
-      colorama
       pytest
+      rich
     ]
   );
 in

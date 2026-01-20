@@ -3,9 +3,11 @@ import os
 import re
 from datetime import datetime
 
-from colorama import Fore, Style, init
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.theme import Theme
 
-init(autoreset=True)
+console = Console(theme=Theme({"logging.level.trace": "dim blue"}))
 
 EVENTS_FILE_PATH = os.path.expanduser("~/Desktop/state/scratchpads/scratchpad4.md")
 MAX_FADE_DAYS = 30
@@ -37,31 +39,44 @@ def setup_logging(log_level, log_filename="riveroftime.log"):
 
     try:
         os.makedirs(log_dir, exist_ok=True)
-        handler = logging.FileHandler(log_file_path)
-        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-    except Exception as e:
-        print(
-            f"{Fore.RED}Failed to configure logging to '{log_file_path}': {e}{Style.RESET_ALL}"
+        file_handler = logging.FileHandler(log_file_path)
+        file_formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
-        logger.addHandler(logging.NullHandler())
+        file_handler.setFormatter(file_formatter)
+        file_handler.setLevel(log_level)
+        logger.addHandler(file_handler)
+    except Exception as e:
+        console.print(
+            f"[bold red]Failed to configure file logging to '{log_file_path}': {e}[/]"
+        )
+
+    rich_handler = RichHandler(
+        console=console,
+        show_time=False,
+        show_path=False,
+        markup=True,
+        rich_tracebacks=True,
+    )
+    rich_handler.setLevel(max(logging.INFO, log_level))
+    logger.addHandler(rich_handler)
 
     return logger
 
 
-def rgb_to_ansi(r, g, b):
-    return f"\033[38;2;{int(r)};{int(g)};{int(b)}m"
+def rgb_to_hex(r, g, b):
+    return f"#{int(r):02x}{int(g):02x}{int(b):02x}"
 
 
 def get_faded_color(base_rgb, distance_from_today):
     if distance_from_today <= 0:
-        return rgb_to_ansi(*base_rgb)
+        return rgb_to_hex(*base_rgb)
 
     fade_factor = min(1.0, abs(distance_from_today) / MAX_FADE_DAYS)
     r = base_rgb[0] + (FADE_TARGET_RGB[0] - base_rgb[0]) * fade_factor
     g = base_rgb[1] + (FADE_TARGET_RGB[1] - base_rgb[1]) * fade_factor
-    return rgb_to_ansi(r, g, b)
+    b = base_rgb[2] + (FADE_TARGET_RGB[2] - base_rgb[2]) * fade_factor
+    return rgb_to_hex(r, g, b)
 
 
 def interpolate_color(start_rgb, end_rgb, fraction):
@@ -69,7 +84,7 @@ def interpolate_color(start_rgb, end_rgb, fraction):
     r = start_rgb[0] + (end_rgb[0] - start_rgb[0]) * fraction
     g = start_rgb[1] + (end_rgb[1] - start_rgb[1]) * fraction
     b = start_rgb[2] + (end_rgb[2] - start_rgb[2]) * fraction
-    return rgb_to_ansi(r, g, b)
+    return rgb_to_hex(r, g, b)
 
 
 BASE_COLORS = {
@@ -77,6 +92,8 @@ BASE_COLORS = {
     "event": (127, 210, 228),
     "countdown": (189, 147, 249),
     "header": (85, 85, 85),
+    "today": (255, 255, 255),
+    "unhandled_past": (255, 80, 80),
 }
 
 STATUS_SYMBOLS = {
@@ -112,23 +129,15 @@ STATUS_COLORS = {
 }
 
 
-STATIC_STYLES = {
-    "today": Fore.WHITE,
-    "bold": Style.BRIGHT,
-    "reset": Style.RESET_ALL,
-    "unhandled_past": rgb_to_ansi(255, 80, 80),
-}
-
-
 def clear_screen():
-    os.system("cls" if os.name == "nt" else "clear")
+    console.clear()
 
 
 def read_events_from_file(file_path, logger):
     logger.info(f"Attempting to read events file: {file_path}")
     if not os.path.exists(file_path):
         message = f"Warning: Events file not found at '{file_path}'."
-        print(f"{Fore.YELLOW}{message}{Style.RESET_ALL}")
+        console.print(f"[bold yellow]{message}[/]")
         logger.warning(message)
         return []
 
@@ -140,7 +149,7 @@ def read_events_from_file(file_path, logger):
         return lines
     except Exception as e:
         message = f"Error reading events file '{file_path}': {e}"
-        print(f"{Fore.RED}{message}{Style.RESET_ALL}")
+        console.print(f"[bold red]{message}[/]")
         logger.error(message)
         return []
 

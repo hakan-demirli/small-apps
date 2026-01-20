@@ -6,7 +6,7 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     install_requires=[
-        "colorama",
+        "rich",
     ],
     entry_points={
         "console_scripts": [

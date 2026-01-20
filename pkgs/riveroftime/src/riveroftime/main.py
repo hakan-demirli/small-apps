@@ -1,26 +1,31 @@
 import calendar
-import os
 import time
 from datetime import datetime, timedelta
 
-from colorama import Fore
+from rich.text import Text
 
 from .shared import (
     BASE_COLORS,
     DAYS_BEFORE_TODAY,
     EVENTS_FILE_PATH,
     FADE_TARGET_RGB,
-    STATIC_STYLES,
     STATUS_COLORS,
     STATUS_SYMBOLS,
     TRACE_LEVEL_NUM,
     clear_screen,
+    console,
     get_faded_color,
     parse_events,
     read_events_from_file,
-    rgb_to_ansi,
+    rgb_to_hex,
     setup_logging,
 )
+
+STATIC_STYLES = {
+    "today": "white",
+    "bold": "bold",
+    "unhandled_past": "#ff5050",
+}
 
 
 def print_dynamic_calendar(events_dict, logger):
@@ -28,9 +33,9 @@ def print_dynamic_calendar(events_dict, logger):
     clear_screen()
 
     try:
-        available_lines = os.get_terminal_size().lines - 2
+        available_lines = console.size.height - 2
         logger.debug(f"Terminal height detected: {available_lines} available lines.")
-    except OSError:
+    except Exception:
         available_lines = 40
         logger.warning(
             f"Could not get terminal size. Defaulting to {available_lines} lines."
@@ -42,8 +47,8 @@ def print_dynamic_calendar(events_dict, logger):
     lines_printed = 0
     last_printed_month = None
 
-    header_color = rgb_to_ansi(*BASE_COLORS["header"])
-    past_event_color = rgb_to_ansi(*FADE_TARGET_RGB)
+    header_color = rgb_to_hex(*BASE_COLORS["header"])
+    past_event_color = rgb_to_hex(*FADE_TARGET_RGB)
     unhandled_past_style = STATIC_STYLES["unhandled_past"]
 
     while lines_printed < available_lines:
@@ -51,7 +56,7 @@ def print_dynamic_calendar(events_dict, logger):
             if lines_printed + 2 > available_lines:
                 break
             month_name = calendar.month_name[current_date.month]
-            print(f"{header_color}{month_name.upper()}{STATIC_STYLES['reset']}")
+            console.print(f"[{header_color}]{month_name.upper()}[/]")
             lines_printed += 1
             last_printed_month = current_date.month
 
@@ -67,30 +72,36 @@ def print_dynamic_calendar(events_dict, logger):
         ):
             has_unhandled_past_event = True
 
+        day_style = ""
         if distance < 0:
             day_color = (
                 unhandled_past_style if has_unhandled_past_event else past_event_color
             )
             countdown_color = past_event_color
-            day_style = ""
         elif distance == 0:
-            day_color, day_style = STATIC_STYLES["today"], STATIC_STYLES["bold"]
-            countdown_color = rgb_to_ansi(*BASE_COLORS["countdown"])
+            day_color = STATIC_STYLES["today"]
+            day_style = STATIC_STYLES["bold"]
+            countdown_color = rgb_to_hex(*BASE_COLORS["countdown"])
         else:
-            day_style = ""
             day_color = get_faded_color(BASE_COLORS["day"], distance)
             countdown_color = get_faded_color(BASE_COLORS["countdown"], distance)
 
         day_num_formatted = f"{day_num:>2}"
-        day_gutter = (
-            f"  {day_style}{day_color}{day_num_formatted}{STATIC_STYLES['reset']}"
-        )
+
+        full_day_style = day_color
+        if day_style:
+            full_day_style = f"{day_style} {day_color}"
+
+        day_gutter = Text(day_num_formatted, style=full_day_style)
+
+        final_line = Text("  ") + day_gutter + Text(" ")
 
         if events_for_day:
             countdown_text = " -" if distance < 0 else f"{distance:>2}"
-            countdown_gutter = (
-                f"{countdown_color}{countdown_text}{STATIC_STYLES['reset']}"
-            )
+            countdown_gutter = Text(countdown_text, style=countdown_color)
+
+            final_line.append(countdown_gutter)
+            final_line.append(" ")
 
             status_char, event_name = events_for_day[0]
             status_symbol = STATUS_SYMBOLS.get(status_char, "○")
@@ -103,14 +114,14 @@ def print_dynamic_calendar(events_dict, logger):
                     else past_event_color
                 )
             elif distance == 0:
-                status_color = rgb_to_ansi(*status_base_color)
+                status_color = rgb_to_hex(*status_base_color)
             else:
                 status_color = get_faded_color(status_base_color, distance)
 
-            first_event_text = f"{status_symbol} {event_name}"
-            print(
-                f"{day_gutter} {countdown_gutter} {status_color}{first_event_text}{STATIC_STYLES['reset']}"
-            )
+            first_event_text = Text(f"{status_symbol} {event_name}", style=status_color)
+            final_line.append(first_event_text)
+
+            console.print(final_line)
             lines_printed += 1
 
             if len(events_for_day) > 1:
@@ -131,16 +142,18 @@ def print_dynamic_calendar(events_dict, logger):
                             else past_event_color
                         )
                     elif distance == 0:
-                        status_color = rgb_to_ansi(*status_base_color)
+                        status_color = rgb_to_hex(*status_base_color)
                     else:
                         status_color = get_faded_color(status_base_color, distance)
 
-                    print(
-                        f"{event_indentation}{status_color}{status_symbol} {event_name}{STATIC_STYLES['reset']}"
+                    event_line = Text(event_indentation)
+                    event_line.append(
+                        f"{status_symbol} {event_name}", style=status_color
                     )
+                    console.print(event_line)
                     lines_printed += 1
         else:
-            print(f"{day_gutter}")
+            console.print(final_line)
             lines_printed += 1
 
         current_date += timedelta(days=1)
@@ -165,13 +178,13 @@ def run(file_path=None):
             time.sleep(5)
         except KeyboardInterrupt:
             logger.info("--- Script stopped by user (KeyboardInterrupt) ---")
-            print("\nExiting.")
+            console.print("\nExiting.")
             break
         except Exception as e:
             logger.error(
                 f"An unexpected error occurred in the main loop: {e}", exc_info=True
             )
-            print(f"{Fore.RED}An unexpected error occurred: {e}")
+            console.print(f"[bold red]An unexpected error occurred: {e}[/]")
             time.sleep(10)
 
 

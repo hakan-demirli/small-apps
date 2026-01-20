@@ -1,22 +1,18 @@
 import time
 from datetime import datetime
 
-from colorama import Fore
+from rich.table import Table
+from rich.text import Text
 
 from .shared import (
-    BASE_COLORS,
     EVENTS_FILE_PATH,
-    FADE_TARGET_RGB,
-    STATIC_STYLES,
-    STATUS_COLORS,
     STATUS_SYMBOLS,
     TRACE_LEVEL_NUM,
     clear_screen,
-    get_faded_color,
+    console,
     interpolate_color,
     parse_events,
     read_events_from_file,
-    rgb_to_ansi,
     setup_logging,
 )
 
@@ -35,7 +31,7 @@ def print_deadlines(events_dict, logger):
                 all_events.append((days_remaining, status_char, event_name))
 
     if not all_events:
-        print(f"{STATIC_STYLES['reset']}No upcoming deadlines found.")
+        console.print("No upcoming deadlines found.")
         return
 
     all_events.sort(key=lambda x: x[0])
@@ -44,19 +40,27 @@ def print_deadlines(events_dict, logger):
     GRADIENT_START = (189, 147, 249)
     GRADIENT_END = (127, 210, 228)
 
+    table = Table(show_header=False, box=None, padding=(0, 1))
+    table.add_column("Days", justify="right")
+    table.add_column("Symbol", justify="center")
+    table.add_column("Event", justify="left")
+
     for i, (days, status, name) in enumerate(all_events):
-        if total_items > 1:
-            fraction = i / (total_items - 1)
-        else:
-            fraction = 0.0
+        fraction = i / (total_items - 1) if total_items > 1 else 0.0
 
-        color = interpolate_color(GRADIENT_START, GRADIENT_END, fraction)
-        count_color = color
-        
+        color_hex = interpolate_color(GRADIENT_START, GRADIENT_END, fraction)
+
         symbol = STATUS_SYMBOLS.get(status, "○")
-        reset = STATIC_STYLES["reset"]
 
-        print(f"{count_color}{days:>4}{reset} {color}{symbol} {name}{reset}")
+        days_str = f"{days}"
+
+        table.add_row(
+            Text(days_str, style=color_hex),
+            Text(symbol, style=color_hex),
+            Text(name, style=f"{color_hex}"),
+        )
+
+    console.print(table)
 
 
 def run(file_path=None):
@@ -74,11 +78,11 @@ def run(file_path=None):
 
             time.sleep(5)
         except KeyboardInterrupt:
-            print("\nExiting.")
+            console.print("\nExiting.")
             break
         except Exception as e:
             logger.error(f"Unexpected error: {e}", exc_info=True)
-            print(f"{Fore.RED}An unexpected error occurred: {e}")
+            console.print(f"[bold red]An unexpected error occurred: {e}[/]")
             time.sleep(10)
 
 
