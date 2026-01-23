@@ -180,8 +180,8 @@ def parse_events(event_list, logger):
     logger.info(f"Starting to parse {len(event_list)} lines with context awareness.")
     parsed = {}
 
-    bracket_pattern = re.compile(r"\[(\d{1,2})[/\.-](\d{1,2})[/\.-](\d{2,4})\]")
-    prefix_pattern = re.compile(r"^(\d{1,2})[/\.-](\d{1,2})[/\.-](\d{2,4}):")
+    bracket_pattern = re.compile(r"\[(\d{1,2})[/\.-](\d{1,2})(?:[/\.-](\d{2,4}))?\]")
+    prefix_pattern = re.compile(r"^(\d{1,2})[/\.-](\d{1,2})(?:[/\.-](\d{2,4}))?:")
     status_pattern = re.compile(r"^\*?\s*\[(.)\]\s*")
 
     context_stack = {}
@@ -248,6 +248,10 @@ def parse_events(event_list, logger):
                 logger.trace(f"Applied tag '{parent_tag}' to event.")
 
             day_str, month_str, year_str = match.groups()
+
+            if not year_str:
+                year_str = str(datetime.now().year)
+
             if len(year_str) == 2:
                 year_str = f"20{year_str}"
 

@@ -108,6 +108,29 @@ class TestParser(unittest.TestCase):
 
         self.assertEqual(actual_result, expected_result)
 
+    def test_parse_events_optional_year(self):
+        current_year = datetime.now().year
+        test_cases = [
+            "* MICRO:",
+            "  * [!] [02/02] bong",
+            "[05/05] Cinco de Mayo",
+            "10/10: Ten Ten",
+        ]
+
+        expected_result = {
+            datetime(current_year, 2, 2).date(): sorted([("!", "MICRO: bong", 1)]),
+            datetime(current_year, 5, 5).date(): sorted([(" ", "Cinco de Mayo", 2)]),
+            datetime(current_year, 10, 10).date(): sorted([(" ", "Ten Ten", 3)]),
+        }
+
+        actual_result = parse_events(test_cases, self.logger)
+
+        # Normalize for comparison
+        for key in actual_result:
+            actual_result[key].sort()
+
+        self.assertEqual(actual_result, expected_result)
+
 
 if __name__ == "__main__":
     unittest.main()
