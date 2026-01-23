@@ -68,6 +68,15 @@ def rgb_to_hex(r, g, b):
     return f"#{int(r):02x}{int(g):02x}{int(b):02x}"
 
 
+def hex_to_rgb(hex_str):
+    """Converts #RRGGBB string to (r, g, b) tuple."""
+    hex_str = hex_str.lstrip("#")
+    if len(hex_str) != 6:
+        # Fallback to white if invalid hex provided
+        return (255, 255, 255)
+    return tuple(int(hex_str[i : i + 2], 16) for i in (0, 2, 4))
+
+
 def get_faded_color(base_rgb, distance_from_today):
     if distance_from_today <= 0:
         return rgb_to_hex(*base_rgb)

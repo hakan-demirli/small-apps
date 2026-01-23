@@ -10,6 +10,7 @@ from .shared import (
     STATUS_SYMBOLS,
     TRACE_LEVEL_NUM,
     console,
+    hex_to_rgb,
     interpolate_color,
     parse_events,
     read_events_from_file,
@@ -17,7 +18,7 @@ from .shared import (
 )
 
 
-def generate_deadlines_table(events_dict, logger, target_symbols):
+def generate_deadlines_table(events_dict, logger, target_symbols, start_rgb, end_rgb):
     today = datetime.now().date()
     all_events = []
 
@@ -36,8 +37,6 @@ def generate_deadlines_table(events_dict, logger, target_symbols):
     all_events.sort(key=lambda x: (x[0], x[1]))
 
     total_items = len(all_events)
-    GRADIENT_START = (189, 147, 249)
-    GRADIENT_END = (127, 210, 228)
 
     table = Table(show_header=False, box=None, padding=(0, 1))
     table.add_column("Days", justify="right")
@@ -47,7 +46,7 @@ def generate_deadlines_table(events_dict, logger, target_symbols):
     for i, (days, _, status, name) in enumerate(all_events):
         fraction = i / (total_items - 1) if total_items > 1 else 0.0
 
-        color_hex = interpolate_color(GRADIENT_START, GRADIENT_END, fraction)
+        color_hex = interpolate_color(start_rgb, end_rgb, fraction)
 
         symbol = STATUS_SYMBOLS.get(status, "○")
 
@@ -61,11 +60,15 @@ def generate_deadlines_table(events_dict, logger, target_symbols):
     return table
 
 
-def run(file_path=None, symbols=None):
+def run(file_path=None, symbols=None, start_hex="#BD93F9", end_hex="#7FD2E4"):
     if file_path is None:
         file_path = EVENTS_FILE_PATH
 
     target_symbols = symbols if symbols else ["<"]
+
+    # Convert Hex args to RGB tuples for interpolation logic
+    start_rgb = hex_to_rgb(start_hex)
+    end_rgb = hex_to_rgb(end_hex)
 
     DESIRED_LOG_LEVEL = TRACE_LEVEL_NUM
     logger = setup_logging(DESIRED_LOG_LEVEL, log_filename="deadlines.log")
@@ -77,7 +80,7 @@ def run(file_path=None, symbols=None):
                 parsed_event_data = parse_events(event_lines, logger)
 
                 table_or_text = generate_deadlines_table(
-                    parsed_event_data, logger, target_symbols
+                    parsed_event_data, logger, target_symbols, start_rgb, end_rgb
                 )
                 live.update(table_or_text, refresh=True)
 

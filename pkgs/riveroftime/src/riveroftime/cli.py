@@ -20,12 +20,29 @@ def main():
         help="Filter by status symbols (e.g. '<' or '!')",
         default=None,
     )
+    parser.add_argument(
+        "--gradient-start",
+        type=str,
+        help="Start color hex for gradients (e.g. '#BD93F9')",
+        default="#BD93F9",
+    )
+    parser.add_argument(
+        "--gradient-end",
+        type=str,
+        help="End color hex for gradients (e.g. '#7FD2E4')",
+        default="#7FD2E4",
+    )
 
     args = parser.parse_args()
 
     if args.deadlines:
         symbol_list = list(args.symbols) if args.symbols else None
-        deadlines.run(file_path=args.file, symbols=symbol_list)
+        deadlines.run(
+            file_path=args.file,
+            symbols=symbol_list,
+            start_hex=args.gradient_start,
+            end_hex=args.gradient_end,
+        )
     elif args.flow:
         flow_main.run(file_path=args.file)
     elif args.calendar:
