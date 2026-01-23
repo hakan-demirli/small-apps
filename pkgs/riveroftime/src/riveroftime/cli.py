@@ -13,7 +13,14 @@ def main():
     parser.add_argument(
         "--calendar", action="store_true", help="Show simple calendar view"
     )
-    parser.add_argument("--file", type=str, help="Path to events file", default=None)
+    parser.add_argument(
+        "--file",
+        "--files",
+        dest="file",
+        nargs="+",
+        help="Path to events file(s)",
+        default=None,
+    )
     parser.add_argument(
         "--symbols",
         type=str,

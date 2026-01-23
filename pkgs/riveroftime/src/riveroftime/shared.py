@@ -138,25 +138,42 @@ STATUS_COLORS = {
 }
 
 
-def read_events_from_file(file_path, logger):
-    logger.info(f"Attempting to read events file: {file_path}")
-    if not os.path.exists(file_path):
-        message = f"Warning: Events file not found at '{file_path}'."
-        console.print(f"[bold yellow]{message}[/]")
-        logger.warning(message)
-        return []
+def read_events_from_file(file_paths, logger):
+    if isinstance(file_paths, str):
+        file_paths = [file_paths]
 
-    try:
-        with open(file_path) as f:
-            lines = f.readlines()
-        lines = [line.rstrip("\n") for line in lines]
-        logger.info(f"Successfully read {len(lines)} lines from file.")
-        return lines
-    except Exception as e:
-        message = f"Error reading events file '{file_path}': {e}"
-        console.print(f"[bold red]{message}[/]")
-        logger.error(message)
-        return []
+    # Handle comma-separated strings if they slipped through
+    expanded_paths = []
+    for path in file_paths:
+        if "," in path:
+            expanded_paths.extend([p.strip() for p in path.split(",") if p.strip()])
+        else:
+            expanded_paths.append(path)
+
+    logger.info(f"Attempting to read events from files: {expanded_paths}")
+
+    all_lines = []
+
+    for file_path in expanded_paths:
+        file_path = os.path.expanduser(file_path)
+        if not os.path.exists(file_path):
+            message = f"Warning: Events file not found at '{file_path}'."
+            console.print(f"[bold yellow]{message}[/]")
+            logger.warning(message)
+            continue
+
+        try:
+            with open(file_path) as f:
+                lines = f.readlines()
+            lines = [line.rstrip("\n") for line in lines]
+            logger.info(f"Successfully read {len(lines)} lines from {file_path}.")
+            all_lines.extend(lines)
+        except Exception as e:
+            message = f"Error reading events file '{file_path}': {e}"
+            console.print(f"[bold red]{message}[/]")
+            logger.error(message)
+
+    return all_lines
 
 
 def parse_events(event_list, logger):
