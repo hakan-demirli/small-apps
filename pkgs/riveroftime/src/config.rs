@@ -28,6 +28,7 @@ pub struct Config {
 pub struct FlowConfig {}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
 pub struct DeadlinesViewConfig {
     pub gradient_start: String,
     pub gradient_end: String,
@@ -43,6 +44,7 @@ impl Default for DeadlinesViewConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
 pub struct LayerToolConfig {
     pub font_paths: Vec<String>,
     pub font_family: Option<String>,
@@ -72,6 +74,7 @@ pub struct LayerToolConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
 pub struct Colors {
     pub background_darker: Color,
     pub background: Color,
@@ -706,5 +709,25 @@ mod tests {
         let toml_str = "file_paths = [\"~/alias_test.md\"]\nsymbols = \"x\"";
         let config: Config = toml::from_str(toml_str).unwrap();
         assert_eq!(config.files, vec!["~/alias_test.md"]);
+    }
+
+    #[test]
+    fn test_selective_color_override() {
+        let toml_str = r##"
+            files = ["test.md"]
+            symbols = "<"
+            [layer.colors]
+            green = "#ffb86c"
+        "##;
+        let config: Config = toml::from_str(toml_str).unwrap();
+
+        assert_eq!(config.layer.colors.green.r, 255);
+        assert_eq!(config.layer.colors.green.g, 184);
+        assert_eq!(config.layer.colors.green.b, 108);
+
+        let default_colors = Colors::default();
+        assert_eq!(config.layer.colors.purple.r, default_colors.purple.r);
+        assert_eq!(config.layer.colors.purple.g, default_colors.purple.g);
+        assert_eq!(config.layer.colors.purple.b, default_colors.purple.b);
     }
 }
