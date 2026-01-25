@@ -13,7 +13,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import yt_dlp
 
@@ -22,7 +21,7 @@ def get_xdg_cache_home():
     return Path(os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")))
 
 
-def setup_run_logging() -> Tuple[Path, logging.Logger]:
+def setup_run_logging() -> tuple[Path, logging.Logger]:
     """Sets up the run directory and the main orchestrator logger."""
     cache_home = get_xdg_cache_home()
     base_dir = cache_home / "youtube_sync"
@@ -97,7 +96,7 @@ class VideoTask:
 class SyncResult:
     success: bool
     message: str
-    task: Optional[VideoTask] = None
+    task: VideoTask | None = None
 
 
 # --- Core Logic ---
@@ -111,7 +110,7 @@ def sanitize_filename(name: str) -> str:
     )
 
 
-def scan_playlist(args: Tuple[str, str, str, Path]) -> List[VideoTask]:
+def scan_playlist(args: tuple[str, str, str, Path]) -> list[VideoTask]:
     """
     Stage 1: Discovery
     Fetches remote playlist metadata and calculates the diff (missing files).
@@ -153,7 +152,7 @@ def scan_playlist(args: Tuple[str, str, str, Path]) -> List[VideoTask]:
     archive_file = Path(playlist_path) / "downloaded.txt"
     downloaded_ids = set()
     if archive_file.exists():
-        with open(archive_file, "r") as f:
+        with open(archive_file) as f:
             for line in f:
                 parts = line.split()
                 if len(parts) >= 2:
@@ -209,7 +208,7 @@ def fetch_video(task: VideoTask) -> SyncResult:
         try:
             with open(log_file, "a") as f:
                 f.write(entry)
-        except:
+        except Exception:
             pass
 
     # Isolation: Create unique temp directory using VIDEO ID
@@ -294,7 +293,7 @@ def fetch_video(task: VideoTask) -> SyncResult:
 
 def discover_playlists(
     root_path: str, orchestrator_logger
-) -> List[Tuple[str, str, str]]:
+) -> list[tuple[str, str, str]]:
     """Parses .gitmodules to find playlists."""
     gitmodules = Path(root_path) / ".gitmodules"
     if not gitmodules.exists():
@@ -350,7 +349,7 @@ def create_m3u8(directory: str):
 
     playlist_file = p / f"{p.name}.m3u8"
     with open(playlist_file, "w") as f:
-        for audio in sorted(list(entries)):
+        for audio in sorted(entries):
             f.write(f"./{audio}\n")
 
 
