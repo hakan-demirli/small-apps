@@ -3,6 +3,7 @@ pkgs.stdenv.mkDerivation {
   name = "youtube_sync";
   propagatedBuildInputs = [
     (pkgs.python3.withPackages (pythonPackages: with pythonPackages; [ yt-dlp ]))
+    pkgs.ffmpeg
   ];
   dontUnpack = true;
   installPhase = ''
