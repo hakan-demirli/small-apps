@@ -43,17 +43,17 @@ struct AppData {
     config: Config,
 
     last_check: Instant,
-    cached_deadlines: Vec<NaiveDate>,
+    cached_deadlines: Vec<(NaiveDate, String)>,
 }
 
 impl AppData {
     fn refresh_deadlines(&mut self) {
-        let mut deadlines: Vec<NaiveDate> = Vec::new();
+        let mut deadlines: Vec<(NaiveDate, String)> = Vec::new();
 
         if self.config.layer.target_dates_from_cli {
             for d_str in &self.config.layer.target_dates {
                 if let Ok(dt) = NaiveDate::parse_from_str(d_str, "%Y-%m-%d") {
-                    deadlines.push(dt);
+                    deadlines.push((dt, "CLI Target".to_string()));
                 }
             }
         } else {
@@ -76,11 +76,11 @@ impl AppData {
                 let target_symbols: Vec<char> = self.config.symbols.chars().collect();
 
                 for (date, events) in parsed {
-                    if events
+                    if let Some((_, name, _)) = events
                         .iter()
-                        .any(|(status, _, _)| target_symbols.contains(status))
+                        .find(|(status, _, _)| target_symbols.contains(status))
                     {
-                        deadlines.push(date);
+                        deadlines.push((date, name.clone()));
                     }
                 }
             }
@@ -88,14 +88,14 @@ impl AppData {
             if deadlines.is_empty() {
                 for d_str in &self.config.layer.target_dates {
                     if let Ok(dt) = NaiveDate::parse_from_str(d_str, "%Y-%m-%d") {
-                        deadlines.push(dt);
+                        deadlines.push((dt, "Default Target".to_string()));
                     }
                 }
             }
         }
 
-        deadlines.sort();
-        deadlines.dedup();
+        deadlines.sort_by_key(|(d, _)| *d);
+        deadlines.dedup_by_key(|(d, _)| *d);
 
         self.cached_deadlines = deadlines;
         debug!(
@@ -122,9 +122,9 @@ impl AppData {
         let mut next_deadline = None;
         let mut prev_deadline = None;
 
-        for d in deadlines {
+        for (d, name) in deadlines {
             if *d > now {
-                next_deadline = Some(*d);
+                next_deadline = Some((*d, name.clone()));
                 break;
             }
             prev_deadline = Some(*d);
@@ -139,8 +139,12 @@ impl AppData {
         }
 
         let mut panic_text = String::new();
-        let (text, percent_burned) = if let Some(next) = next_deadline {
+        let (text, percent_burned) = if let Some((next, name)) = next_deadline {
             let prev = prev_deadline.unwrap();
+            debug!(
+                "Targeting deadline: '{}' ({}) starting from: {}",
+                name, next, prev
+            );
 
             let now_full = Local::now();
             let prev_full = prev
