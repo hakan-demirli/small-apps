@@ -22,7 +22,7 @@ pub fn run(events: Option<ParsedEvents>) {
 
     let mut stdout = stdout();
 
-    for (y, m) in &months {
+    for (i, (y, m)) in months.iter().enumerate() {
         let month_name = chrono::Month::try_from(*m as u8).unwrap().name();
         let title = format!("{} {}", month_name, y);
 
@@ -34,17 +34,24 @@ pub fn run(events: Option<ParsedEvents>) {
             let _ = stdout.execute(SetAttribute(Attribute::Bold));
         }
 
-        print!("{:^20}", title);
+        let title_str = format!("{:^20}", title);
+        if i < months.len() - 1 {
+            print!("{}  ", title_str);
+        } else {
+            print!("{}", title_str.trim_end());
+        }
         let _ = stdout.execute(ResetColor);
-        print!("  ");
     }
     println!();
 
-    for _ in 0..3 {
+    for i in 0..3 {
         let _ = stdout.execute(SetForegroundColor(Color::Blue));
-        print!("Mo Tu We Th Fr Sa Su");
+        if i < 2 {
+            print!("Mo Tu We Th Fr Sa Su  ");
+        } else {
+            print!("Mo Tu We Th Fr Sa Su");
+        }
         let _ = stdout.execute(ResetColor);
-        print!("  ");
     }
     println!();
 
@@ -53,17 +60,32 @@ pub fn run(events: Option<ParsedEvents>) {
         .map(|&(y, m)| generate_month_grid(y, m, now, events.as_ref()))
         .collect();
 
-    for i in 0..6 {
-        for grid in &grids {
-            if i < grid.len() {
-                let row_str = grid[i].join(" ");
-                print!("{:20}", row_str);
-            } else {
-                print!("{:20}", " ");
+    let mut max_needed_rows = 0;
+    for grid in &grids {
+        for (row_idx, row) in grid.iter().enumerate() {
+            if row.iter().any(|day| day.trim() != "") && row_idx + 1 > max_needed_rows {
+                max_needed_rows = row_idx + 1;
             }
-            print!("  ");
         }
-        println!();
+    }
+
+    for i in 0..max_needed_rows {
+        for (j, grid) in grids.iter().enumerate() {
+            let row_str = if i < grid.len() {
+                grid[i].join(" ")
+            } else {
+                " ".repeat(20)
+            };
+
+            if j < grids.len() - 1 {
+                print!("{}  ", row_str);
+            } else {
+                print!("{}", row_str.trim_end());
+            }
+        }
+        if i < max_needed_rows - 1 {
+            println!();
+        }
     }
 }
 
