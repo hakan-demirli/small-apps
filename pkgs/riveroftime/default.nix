@@ -1,42 +1,34 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  lib,
+}:
 let
-  pythonEnv = pkgs.python3.withPackages (
-    pythonPackages: with pythonPackages; [
-      pytest
-      rich
-    ]
-  );
+  realDerivation = pkgs.callPackage ./package.nix { };
+  checks = import ./nix/checks.nix {
+    inherit pkgs;
+  };
+
 in
 pkgs.stdenv.mkDerivation {
-  name = "riveroftime";
+  name = "riveroftime-checked";
 
-  nativeBuildInputs = [
-    pkgs.makeWrapper
-    pythonEnv
-  ];
-
-  propagatedBuildInputs = [
-    pythonEnv
-  ];
-
-  src = ./.;
   dontUnpack = true;
+  dontBuild = true;
 
   doCheck = true;
-
   checkPhase = ''
-    export PYTHONPATH=$src/src
-    pytest $src/tests
+    echo "Running checks..."
+    ${builtins.concatStringsSep "\n" (builtins.map (c: "echo ${c}") (builtins.attrValues checks))}
   '';
 
   installPhase = ''
-    mkdir -p $out/lib/riveroftime
-    cp -r $src/src/* $out/lib/riveroftime/
-
     mkdir -p $out/bin
-
-    makeWrapper ${pythonEnv}/bin/python $out/bin/riveroftime \
-      --add-flags "-m riveroftime.cli" \
-      --prefix PYTHONPATH : "$out/lib/riveroftime"
+    cp ${realDerivation}/bin/riveroftime $out/bin/riveroftime
   '';
+
+  meta = {
+    description = "Wayland layer countdown timer";
+    license = lib.licenses.mit;
+    mainProgram = "riveroftime";
+  };
 }

@@ -1,1 +1,3 @@
-example-python-repo-auto-grader
+/target
+.direnv
+result
