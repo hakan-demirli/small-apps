@@ -170,13 +170,12 @@ impl AppData {
             let percent_remaining = (100.0 - percent_burned).clamp(0.0, 100.0);
 
             let millis_remaining = (next_full - now_full).num_milliseconds().max(0);
-            let seconds_remaining_float = millis_remaining as f64 / 1000.0;
-            let panic_score = (seconds_remaining_float * 0.6666 * 15.0) as u64;
-            panic_text = format!("{:08}", panic_score);
+            let days_remaining = millis_remaining as f64 / (1000.0 * 60.0 * 60.0 * 24.0);
+            panic_text = format!("{:010.6}", days_remaining);
 
             debug!(
-                "Update: burned={:.4}%, panic={}, millis_rem={}",
-                percent_burned, panic_score, millis_remaining
+                "Update: burned={:.4}%, days_remaining={:.6}, millis_rem={}",
+                percent_burned, days_remaining, millis_remaining
             );
 
             (format!("{:.4}%", percent_remaining), percent_burned)
