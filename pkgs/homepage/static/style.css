@@ -1,21 +1,16 @@
-/* Dracula-ish Theme Variables */
 :root {
-  --bg-color: #282a36; /* Background */
-  --fg-color: #f8f8f2; /* Foreground */
-  --current-line-color: #44475a; /* Current Line / Container Background */
-  --comment-color: #ffffff; /* Comment / Subtle text */
-  --cyan-color: #8be9fd;
-  --green-color: #50fa7b;
-  --orange-color: #ffb86c;
-  --pink-color: #ff79c6;
-  --purple-color: #282a36;
-  --red-color: #ff5555;
-  --yellow-color: #f1fa8c;
-
-  --glass-bg: rgba(68, 71, 90, 0.8); /* --current-line-color with alpha */
-  --glass-blur: 10px;
-  --border-radius: 12px;
-  --gap: 15px;
+  --bg: #282a36;
+  --bg-dark: #21222c;
+  --current: #44475a;
+  --fg: #f8f8f2;
+  --comment: #6272a4;
+  --cyan: #8be9fd;
+  --green: #50fa7b;
+  --orange: #ffb86c;
+  --pink: #ff79c6;
+  --purple: #bd93f9;
+  --red: #ff5555;
+  --yellow: #f1fa8c;
 }
 
 * {
@@ -25,197 +20,280 @@
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
-  color: var(--fg-color);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start; /* Align container to top */
+  background: var(--bg);
   min-height: 100vh;
-  padding-top: 5vh; /* Add some space at the top */
-
-  background-image: url("/wp.png");
-  background-size: cover;
-  background-position: center; /* Center the image */
-  background-repeat: no-repeat; /* Don't tile the image */
-  background-attachment: fixed; /* Keep the background fixed during scroll */
-}
-
-.main-container {
-  width: 80%;
-  max-width: 1200px;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--gap) * 1.5); /* More gap between tab bar and grid */
-}
-
-/* Frosty Glass Base Style */
-.glass-effect {
-  background-color: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur)); /* Safari */
-  border-radius: var(--border-radius);
-  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-}
-
-.tab-bar {
-  display: flex;
-  align-items: stretch; /* Make buttons same height */
-  gap: 5px; /* Smaller gap between tabs */
-  padding: 8px;
-  overflow-x: auto; /* Allow scrolling if too many tabs */
-  width: 100%;
-}
-
-.tab-button,
-.add-tab-button {
-  flex-grow: 1; /* Make tabs share width equally */
-  flex-basis: 0; /* Important for flex-grow to work reliably */
-  min-width: 100px; /* Prevent tabs from becoming too small */
-  padding: 10px 15px;
-  border: none;
-  background-color: transparent;
-  color: var(--comment-color);
-  font-size: 1rem;
-  font-weight: 500;
-  font-weight: bold;
-  border-radius: calc(var(--border-radius) / 1.5);
-  cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tab-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: var(--fg-color);
-}
-
-.tab-button.active {
-  background-color: var(--purple-color); /* Or another highlight color */
-  color: var(--bg-color); /* Dark text on active tab */
-  font-weight: 600;
-}
-
-.add-tab-button {
-  flex-grow: 0; /* Don't let '+' button grow */
-  flex-basis: auto;
-  min-width: 50px;
-  color: var(--green-color);
-  font-size: 1.5rem;
-  font-weight: bold;
-  padding: 5px 10px;
-}
-.add-tab-button:hover {
-  background-color: rgba(80, 250, 123, 0.2); /* Greenish tint */
-}
-
-.grid-container {
-  display: grid;
-  grid-template-columns: repeat(
-    auto-fill,
-    minmax(140px, 1fr)
-  ); /* Responsive grid */
-  gap: var(--gap);
-  padding: var(--gap);
-  width: 100%;
-}
-
-.grid-item,
-.add-item-button {
-  aspect-ratio: 1 / 1; /* Make items square */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-  text-decoration: none;
-  color: var(--fg-color);
-  font-size: 1rem;
-  font-weight: 500;
-  padding: 10px;
-  text-align: center;
-  word-break: break-word; /* Wrap long names */
-  overflow: hidden;
+  padding: 40px 20px;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+.add-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  background: var(--current);
+  border: 1px solid var(--comment);
+  border-radius: 12px;
+  color: var(--green);
+  font-size: 28px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition:
-    transform 0.2s ease,
-    background-color 0.2s ease;
-  position: relative; /* Needed for potential future additions like delete buttons */
+    background 0.15s,
+    transform 0.15s;
+  z-index: 100;
 }
-.grid-item:hover {
+
+.add-btn:hover {
+  background: var(--comment);
   transform: scale(1.05);
-  background-color: rgba(255, 255, 255, 0.1); /* Subtle hover highlight */
 }
 
-.grid-item span {
-  /* Allows text to wrap better within the flex container */
-  max-width: 100%;
+.section {
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 32px;
 }
 
-.add-item-button {
-  color: var(--cyan-color);
-  font-size: 3rem;
-  font-weight: lighter;
+.section-title {
+  color: var(--comment);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  padding-left: 4px;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-height: 120px;
+}
+
+.shortcut {
+  width: 120px;
+  height: 120px;
+  background: var(--current);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: var(--fg);
+  transition:
+    transform 0.15s,
+    background 0.15s,
+    opacity 0.2s,
+    border-color 0.15s;
+  padding: 12px;
+  border: 2px solid var(--comment);
+  cursor: grab;
+  position: relative;
+}
+
+.shortcut:hover {
+  background: var(--comment);
+}
+.shortcut.no-link {
+  opacity: 0.7;
+}
+
+.shortcut.dragging {
+  opacity: 0.4;
+  transform: scale(0.95);
+  cursor: grabbing;
+}
+
+.shortcut.drag-over {
+  border-color: var(--green);
+  background: var(--bg-dark);
+  transform: scale(1.05);
+}
+
+.shortcut.drag-left::before,
+.shortcut.drag-right::after {
+  content: "";
+  position: absolute;
+  top: 10%;
+  height: 80%;
+  width: 4px;
+  background: var(--green);
+  border-radius: 2px;
+}
+
+.shortcut.drag-left::before {
+  left: -10px;
+}
+.shortcut.drag-right::after {
+  right: -10px;
+}
+
+.shortcut .icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: var(--bg-dark);
+  border-radius: 12px;
+  color: var(--purple);
+  pointer-events: none;
+}
+
+.shortcut .icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.shortcut .name {
+  font-size: 13px;
+  text-align: center;
+  word-break: break-word;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.shortcut .url-text {
+  font-size: 10px;
+  color: var(--comment);
+  margin-top: 4px;
+  text-align: center;
+  word-break: break-all;
+  pointer-events: none;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(40, 42, 54, 0.9);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.show {
+  display: flex;
+}
+
+.modal-content {
+  background: var(--current);
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 300px;
+  border: 1px solid var(--comment);
+}
+
+.modal-content h3 {
+  color: var(--fg);
+  margin-bottom: 16px;
+}
+
+.modal-content input,
+.modal-content select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: var(--bg);
+  border: 1px solid var(--comment);
+  border-radius: 8px;
+  color: var(--fg);
+  font-size: 14px;
+}
+
+.modal-content input:focus,
+.modal-content select:focus {
+  outline: none;
+  border-color: var(--purple);
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.modal-buttons button {
+  flex: 1;
+  padding: 12px;
   border: none;
-  background-color: transparent; /* Match tab add button style better */
-}
-.add-item-button:hover {
-  background-color: rgba(139, 233, 253, 0.2); /* Cyan tint */
-  transform: none; /* No scale on add button */
-}
-
-/* Apply glass effect to containers */
-.tab-bar,
-.grid-container,
-.grid-item,
-.add-item-button {
-  background-color: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border-radius: var(--border-radius);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-/* Override for specific items if needed */
-.tab-button {
-  /* Tab buttons themselves shouldn't have the full glass effect */
-  background-color: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: none;
-  box-shadow: none;
-}
-.tab-button.active {
-  background-color: var(--purple-color); /* Restore active background */
-  color: var(--bg-color);
-}
-.add-tab-button {
-  background-color: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: none;
-  box-shadow: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s;
 }
 
-/* Scrollbar styling (optional, for webkit browsers) */
-.tab-bar::-webkit-scrollbar {
-  height: 8px;
+.btn-cancel {
+  background: var(--comment);
+  color: var(--fg);
 }
-.tab-bar::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
+.btn-cancel:hover {
+  background: var(--bg-dark);
 }
-.tab-bar::-webkit-scrollbar-thumb {
-  background-color: var(--comment-color);
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+.btn-save {
+  background: var(--green);
+  color: var(--bg);
 }
-.tab-bar::-webkit-scrollbar-thumb:hover {
-  background-color: var(--purple-color);
+.btn-save:hover {
+  background: #69ff94;
 }
+
+.edit-btn {
+  position: fixed;
+  top: 76px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  background: var(--current);
+  border: 1px solid var(--comment);
+  border-radius: 12px;
+  color: var(--orange);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.15s;
+  z-index: 100;
+}
+.edit-btn:hover { background: var(--comment); transform: scale(1.05); }
+.edit-btn.active { background: var(--orange); color: var(--bg); }
+
+.shortcut .delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background: var(--red);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+body.edit-mode .shortcut .delete-btn { display: flex; }
+body.edit-mode .shortcut { cursor: default; }
+body.edit-mode .shortcut:hover { transform: none; }

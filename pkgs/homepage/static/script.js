@@ -1,256 +1,236 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const tabBar = document.getElementById("tab-bar");
-  const gridContainer = document.getElementById("grid-container");
-
-  let state = {
-    tabs: [],
-    activeTab: 0,
-  };
-
-  // --- API Communication ---
-  async function fetchState() {
+function loadData() {
+  const saved = localStorage.getItem("homepageData");
+  if (saved) {
     try {
-      const response = await fetch("/api/state");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      state = await response.json();
-      // Ensure activeTab is valid
-      if (state.activeTab >= state.tabs.length || state.activeTab < 0) {
-        state.activeTab = 0;
-      }
-      // Ensure items array exists for all tabs
-      state.tabs.forEach((tab) => {
-        if (!Array.isArray(tab.items)) {
-          tab.items = [];
-        }
-      });
-
-      renderUI();
-    } catch (error) {
-      console.error("Failed to fetch state:", error);
-      // Initialize with default if fetch fails critically
-      state = { tabs: [{ name: "Default", items: [] }], activeTab: 0 };
-      renderUI();
-      alert("Could not load state from server. Using default.");
-    }
+      return JSON.parse(saved);
+    } catch {}
   }
-
-  async function saveState() {
-    try {
-      const response = await fetch("/api/state", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(state),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      // console.log("State saved successfully"); // Optional debug
-    } catch (error) {
-      console.error("Failed to save state:", error);
-      alert("Error saving changes to the server.");
-    }
-  }
-
-  // --- Rendering ---
-  function renderUI() {
-    renderTabs();
-    renderGrid();
-  }
-
-  function renderTabs() {
-    tabBar.innerHTML = ""; // Clear existing tabs
-
-    state.tabs.forEach((tab, index) => {
-      const tabButton = document.createElement("button");
-      tabButton.className = "tab-button";
-      tabButton.textContent = tab.name;
-      if (index === state.activeTab) {
-        tabButton.classList.add("active");
-      }
-      tabButton.addEventListener("click", () => {
-        state.activeTab = index;
-        renderUI(); // Re-render both tabs (for active class) and grid
-        saveState(); // Save the change in active tab
-      });
-      tabBar.appendChild(tabButton);
-    });
-
-    // Add '+' button for adding new tabs
-    const addTabButton = document.createElement("button");
-    addTabButton.className = "add-tab-button";
-    addTabButton.textContent = "+";
-    addTabButton.title = "Add new tab";
-    addTabButton.addEventListener("click", handleAddTab);
-    tabBar.appendChild(addTabButton);
-  }
-
-  function renderGrid() {
-    gridContainer.innerHTML = ""; // Clear existing grid items
-
-    // Handle cases with no tabs
-    if (
-      state.tabs.length === 0 ||
-      state.activeTab < 0 ||
-      state.activeTab >= state.tabs.length
-    ) {
-      // Optionally display a message or just show the add item button if needed
-      // gridContainer.innerHTML = '<p style="color: var(--comment-color); grid-column: 1 / -1;">No tabs available. Add one using the + button above.</p>';
-      // If you want the add item button even with no tabs (might be confusing):
-      // createAndAppendAddItemButton();
-      return; // Exit rendering if no valid tab is active
-    }
-
-    const currentTab = state.tabs[state.activeTab];
-    // Ensure items is always an array
-    const items = Array.isArray(currentTab.items) ? currentTab.items : [];
-
-    items.forEach((item) => {
-      const gridLink = document.createElement("a");
-      gridLink.className = "grid-item glass-effect"; // Added glass-effect here
-      gridLink.href = item.url;
-      // gridLink.target = "_blank"; // Open in new tab
-      gridLink.rel = "noopener noreferrer"; // Security best practice
-
-      const nameSpan = document.createElement("span");
-      nameSpan.textContent = item.name;
-      gridLink.appendChild(nameSpan);
-
-      gridContainer.appendChild(gridLink);
-    });
-
-    // Add '+' button for adding new items
-    createAndAppendAddItemButton();
-  }
-
-  function createAndAppendAddItemButton() {
-    const addItemButton = document.createElement("button");
-    addItemButton.className = "add-item-button glass-effect"; // Added glass-effect here
-    addItemButton.textContent = "+";
-    addItemButton.title = "Add new link";
-    addItemButton.addEventListener("click", handleAddItem);
-    gridContainer.appendChild(addItemButton);
-  }
-
-  // --- Event Handlers ---
-  function handleAddTab() {
-    const newTabName = prompt("Enter name for the new tab:");
-    if (newTabName && newTabName.trim() !== "") {
-      state.tabs.push({ name: newTabName.trim(), items: [] });
-      state.activeTab = state.tabs.length - 1; // Activate the new tab
-      renderUI();
-      saveState();
-      // Scroll the new tab into view if tab-bar is scrollable
-      const tabButtons = tabBar.querySelectorAll(".tab-button");
-      if (tabButtons.length > 0) {
-        tabButtons[tabButtons.length - 1].scrollIntoView({
-          behavior: "smooth",
-          inline: "nearest",
-        });
-      }
-    } else if (newTabName !== null) {
-      // Alert only if not cancelled
-      alert("Tab name cannot be empty.");
-    }
-  }
-
-  function handleAddItem() {
-    if (state.tabs.length === 0) {
-      alert("Please add a tab first!");
-      return;
-    }
-    const url = prompt("Enter the URL (e.g., https://example.com):");
-    if (url && url.trim() !== "") {
-      const name = prompt("Enter a name for this link:");
-      if (name && name.trim() !== "") {
-        // Ensure the items array exists
-        if (!Array.isArray(state.tabs[state.activeTab].items)) {
-          state.tabs[state.activeTab].items = [];
-        }
-        // Basic URL validation (optional but good)
-        let finalUrl = url.trim();
-        if (
-          !finalUrl.startsWith("http://") &&
-          !finalUrl.startsWith("https://") &&
-          !finalUrl.startsWith("//")
-        ) {
-          finalUrl = "http://" + finalUrl; // Add http if missing (simplistic)
-        }
-
-        state.tabs[state.activeTab].items.push({
-          name: name.trim(),
-          url: finalUrl,
-        });
-        renderGrid(); // Only need to re-render the grid
-        saveState();
-      } else if (name !== null) {
-        alert("Link name cannot be empty.");
-      }
-    } else if (url !== null) {
-      alert("URL cannot be empty.");
-    }
-  }
-
-  // --- Keyboard Shortcuts ---
-  const tabShortcuts = {
-    u: 0, // Alt+U -> First tab (index 0)
-    i: 1, // Alt+I -> Second tab (index 1)
-    o: 2, // Alt+O -> Third tab (index 2)
-    p: 3, // Alt+P -> Fourth tab (index 3)
-    // Add more mappings here if needed, e.g., 'k': 4
+  return {
+    services: [...(window.DEFAULT_SERVICES || [])],
+    addresses: [...(window.DEFAULT_ADDRESSES || [])],
   };
+}
 
-  document.addEventListener("keydown", (event) => {
-    // We only care about Alt + key combinations
-    if (!event.altKey) {
-      return;
+function saveData(data) {
+  localStorage.setItem("homepageData", JSON.stringify(data));
+}
+
+let data = loadData();
+let editMode = false;
+const iconCache = JSON.parse(localStorage.getItem("iconCache") || "{}");
+
+async function fetchFavicon(url) {
+  try {
+    const domain = new URL(url).origin;
+    if (iconCache[domain] && Date.now() - iconCache[domain].ts < 86400000) {
+      return iconCache[domain].icon;
     }
+    const faviconUrl = domain + "/favicon.ico";
+    await fetch(faviconUrl, { mode: "no-cors" });
+    iconCache[domain] = { icon: faviconUrl, ts: Date.now() };
+    localStorage.setItem("iconCache", JSON.stringify(iconCache));
+    return faviconUrl;
+  } catch {
+    return null;
+  }
+}
 
-    // Prevent shortcuts from triggering if user is typing in a prompt or future input field
-    if (
-      event.target.tagName === "INPUT" ||
-      event.target.tagName === "TEXTAREA"
-    ) {
-      // Although prompts block execution, this is good practice for potential future UI elements
-      return;
-    }
+let dragSrcIdx = null;
+let dragSrcType = null;
 
-    const key = event.key.toLowerCase(); // Use lowercase for case-insensitivity
+function createShortcutEl(s, idx, type, clickable) {
+  const el = document.createElement("div");
+  el.className = "shortcut" + (clickable ? "" : " no-link");
+  el.draggable = !editMode;
+  el.dataset.idx = idx;
+  el.dataset.type = type;
 
-    if (tabShortcuts.hasOwnProperty(key)) {
-      const targetTabIndex = tabShortcuts[key];
+  // Delete button (X)
+  const deleteBtn = document.createElement("button");
+  deleteBtn.className = "delete-btn";
+  deleteBtn.textContent = "×";
+  deleteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    data[type].splice(idx, 1);
+    saveData(data);
+    render();
+  });
+  el.appendChild(deleteBtn);
 
-      // Check if the target tab exists in the current state
-      if (targetTabIndex >= 0 && targetTabIndex < state.tabs.length) {
-        // Prevent the default browser action associated with the shortcut (if any)
-        event.preventDefault();
+  const iconDiv = document.createElement("div");
+  iconDiv.className = "icon";
 
-        // Check if we are actually changing the tab
-        if (state.activeTab !== targetTabIndex) {
-          state.activeTab = targetTabIndex;
-          renderUI(); // Re-render tabs and grid
-          saveState(); // Save the new active tab index
-
-          // Optional: Scroll the newly activated tab into view if needed
-          const tabButtons = tabBar.querySelectorAll(".tab-button");
-          if (tabButtons[targetTabIndex]) {
-            tabButtons[targetTabIndex].scrollIntoView({
-              behavior: "smooth",
-              inline: "nearest",
-            });
-          }
-        }
+  if (clickable) {
+    fetchFavicon(s.url).then((favicon) => {
+      if (favicon) {
+        const img = document.createElement("img");
+        img.src = favicon;
+        img.onerror = () => {
+          iconDiv.textContent = s.name[0].toUpperCase();
+        };
+        iconDiv.appendChild(img);
+      } else {
+        iconDiv.textContent = s.name[0].toUpperCase();
       }
-      // Optional: Provide feedback if the shortcut corresponds to a non-existent tab
-      // else {
-      //    console.log(`Shortcut Alt+${key.toUpperCase()} pressed, but tab index ${targetTabIndex} does not exist.`);
-      // }
+    });
+  } else {
+    iconDiv.textContent = s.name[0].toUpperCase();
+  }
+
+  const nameDiv = document.createElement("div");
+  nameDiv.className = "name";
+  nameDiv.textContent = s.name;
+
+  el.appendChild(iconDiv);
+  el.appendChild(nameDiv);
+
+  if (!clickable) {
+    const urlDiv = document.createElement("div");
+    urlDiv.className = "url-text";
+    urlDiv.textContent = s.url.replace(/^https?:\/\//, "");
+    el.appendChild(urlDiv);
+  }
+
+  // Click to navigate
+  el.addEventListener("click", () => {
+    if (editMode) return;
+    if (clickable && !el.classList.contains("dragging")) {
+      window.location.href = s.url;
     }
   });
 
-  // --- Initial Load ---
-  fetchState();
-}); // End of DOMContentLoaded listener
+  el.addEventListener("dragstart", (e) => {
+    if (editMode) return;
+    dragSrcIdx = idx;
+    dragSrcType = type;
+    el.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", idx);
+  });
+
+  el.addEventListener("dragend", () => {
+    el.classList.remove("dragging");
+    document
+      .querySelectorAll(".drag-over, .drag-left, .drag-right")
+      .forEach((x) => {
+        x.classList.remove("drag-over", "drag-left", "drag-right");
+      });
+    dragSrcIdx = null;
+    dragSrcType = null;
+  });
+
+  el.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    if (editMode) return;
+    if (dragSrcType !== type) return;
+    if (dragSrcIdx === idx) return;
+
+    e.dataTransfer.dropEffect = "move";
+
+    document
+      .querySelectorAll(".drag-over, .drag-left, .drag-right")
+      .forEach((x) => {
+        x.classList.remove("drag-over", "drag-left", "drag-right");
+      });
+
+    const rect = el.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+
+    el.classList.add("drag-over");
+    if (e.clientX < midX) {
+      el.classList.add("drag-left");
+    } else {
+      el.classList.add("drag-right");
+    }
+  });
+
+  el.addEventListener("dragleave", () => {
+    el.classList.remove("drag-over", "drag-left", "drag-right");
+  });
+
+  el.addEventListener("drop", (e) => {
+    e.preventDefault();
+    if (editMode) return;
+    if (dragSrcType !== type) return;
+    if (dragSrcIdx === null || dragSrcIdx === idx) return;
+
+    const rect = el.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    const dropBefore = e.clientX < midX;
+
+    const arr = data[type];
+    const [item] = arr.splice(dragSrcIdx, 1);
+
+    let targetIdx = idx;
+    if (dragSrcIdx < idx) targetIdx--;
+    if (!dropBefore) targetIdx++;
+
+    arr.splice(targetIdx, 0, item);
+    saveData(data);
+    render();
+  });
+
+  return el;
+}
+
+function render() {
+  const servicesEl = document.getElementById("services");
+  const addressesEl = document.getElementById("addresses");
+  servicesEl.innerHTML = "";
+  addressesEl.innerHTML = "";
+
+  document.getElementById("services-section").style.display = data.services.length ? "block" : "none";
+  document.getElementById("addresses-section").style.display = data.addresses.length ? "block" : "none";
+
+  data.services.forEach((s, i) =>
+    servicesEl.appendChild(createShortcutEl(s, i, "services", true)),
+  );
+  data.addresses.forEach((s, i) =>
+    addressesEl.appendChild(createShortcutEl(s, i, "addresses", false)),
+  );
+}
+
+// Edit mode toggle
+const editBtn = document.getElementById("editBtn");
+editBtn.addEventListener("click", () => {
+  editMode = !editMode;
+  document.body.classList.toggle("edit-mode", editMode);
+  editBtn.classList.toggle("active", editMode);
+  render();
+});
+
+// Modal
+const modal = document.getElementById("modal");
+const inputName = document.getElementById("inputName");
+const inputUrl = document.getElementById("inputUrl");
+const inputType = document.getElementById("inputType");
+
+document.getElementById("addBtn").addEventListener("click", () => {
+  inputName.value = "";
+  inputUrl.value = "";
+  inputType.value = "services";
+  modal.classList.add("show");
+  inputName.focus();
+});
+
+document.getElementById("btnCancel").addEventListener("click", () => {
+  modal.classList.remove("show");
+});
+
+document.getElementById("btnSave").addEventListener("click", () => {
+  const name = inputName.value.trim();
+  const url = inputUrl.value.trim();
+  const type = inputType.value;
+  if (name && url) {
+    data[type].push({ name, url });
+    saveData(data);
+    render();
+    modal.classList.remove("show");
+  }
+});
+
+modal.addEventListener("click", (e) => {
+  if (e.target === modal) modal.classList.remove("show");
+});
+
+render();

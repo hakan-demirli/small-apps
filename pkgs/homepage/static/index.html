@@ -3,23 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Homepage</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23282a36' width='100' height='100' rx='20'/><text y='.9em' x='50' text-anchor='middle' font-size='70'>🏠</text></svg>"
+    />
+    <title>Home</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="main-container">
-      <div class="tab-bar" id="tab-bar">
-        <!-- Tabs will be loaded here by JS -->
-        <!-- <button class="tab-button active">Home</button> -->
-        <!-- <button class="tab-button add-tab-button">+</button> -->
-      </div>
-      <div class="grid-container" id="grid-container">
-        <!-- Grid items will be loaded here by JS -->
-        <!-- <a href="https://example.com" target="_blank" class="grid-item">Example</a> -->
-        <!-- <button class="grid-item add-item-button">+</button> -->
+    <button class="add-btn" id="addBtn">+</button>
+    <button class="edit-btn" id="editBtn">✎</button>
+
+    <div class="section" id="services-section">
+      <div class="section-title">Services</div>
+      <div class="grid" id="services"></div>
+    </div>
+    <div class="section" id="addresses-section">
+      <div class="section-title">Addresses</div>
+      <div class="grid" id="addresses"></div>
+    </div>
+
+    <div class="modal" id="modal">
+      <div class="modal-content">
+        <h3>Add Shortcut</h3>
+        <input type="text" id="inputName" placeholder="Name" />
+        <input type="text" id="inputUrl" placeholder="URL" />
+        <select id="inputType">
+          <option value="services">Service (clickable)</option>
+          <option value="addresses">Address (display only)</option>
+        </select>
+        <div class="modal-buttons">
+          <button class="btn-cancel" id="btnCancel">Cancel</button>
+          <button class="btn-save" id="btnSave">Save</button>
+        </div>
       </div>
     </div>
 
+    <!-- DATA_INJECTION_POINT -->
     <script src="script.js"></script>
   </body>
 </html>

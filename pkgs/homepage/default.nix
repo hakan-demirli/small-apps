@@ -1,26 +1,45 @@
-{ pkgs, ... }:
-pkgs.stdenv.mkDerivation {
-  name = "homepage";
+{
+  pkgs,
+  lib,
+  configFile ? null,
+  ...
+}:
+let
+  defaultConfig = {
+    services = [ ];
+    addresses = [ ];
+  };
 
-  src = ./.;
+  config = if configFile != null then lib.importJSON configFile else defaultConfig;
 
-  propagatedBuildInputs = [
-    (pkgs.python3.withPackages (pythonPackages: with pythonPackages; [ ]))
-  ];
+  mkShortcut = { name, url }: ''{ name: "${name}", url: "${url}" }'';
 
-  buildPhase = ''
-    substituteInPlace homepage.py \
-      --replace 'SCRIPT_DIR / "static"' "'$out/share/homepage/static'"
+  dataScript = ''
+    <script>
+      window.DEFAULT_SERVICES = [
+        ${lib.concatStringsSep ",\n      " (map mkShortcut config.services)}
+      ];
+      window.DEFAULT_ADDRESSES = [
+        ${lib.concatStringsSep ",\n      " (map mkShortcut config.addresses)}
+      ];
+    </script>
   '';
+in
+pkgs.runCommand "homepage" { } ''
+    mkdir -p $out/share/homepage $out/bin
 
-  installPhase = ''
-    mkdir -p $out/bin $out/share/homepage
+    cp ${./static/style.css} $out/share/homepage/style.css
+    cp ${./static/script.js} $out/share/homepage/script.js
 
-    cp -r static $out/share/homepage/static
+    substitute ${./static/index.html} $out/share/homepage/index.html \
+      --replace "<!-- DATA_INJECTION_POINT -->" '${dataScript}'
 
-    cp homepage.py $out/homepage.py
-
-    ln -s $out/homepage.py $out/bin/homepage
+    cat > $out/bin/homepage <<EOF
+  #!${pkgs.bash}/bin/bash
+  PORT=\''${1:-8100}
+  cd $out/share/homepage
+  echo "Serving homepage at http://localhost:\$PORT"
+  ${pkgs.python3}/bin/python3 -m http.server "\$PORT"
+  EOF
     chmod +x $out/bin/homepage
-  '';
-}
+''
